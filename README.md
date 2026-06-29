@@ -34,6 +34,7 @@ Bu depo şu an **Faz 0 + Faz 1**'i içerir: kimlik doğrulama (panel kullanıcı
 - ❤️ **Health & stats:** Healthcheck zinciri (database→db→auth→channel→haproxy), CPU/RAM/network grafiği, quest-compiler exit-code uyarısı.
 - 🔁 **Container işlemleri:** Graceful restart/stop (`--time=30`), onay modalı ile, sadece admin/operator.
 - 📜 **Canlı log izleme (SSE):** Servis seç → son 200 satır + canlı akış; Metin2 log formatı parse + level renklendirme (error→kırmızı, warning→sarı) + level filtresi; quest-compiler için tam çıktı (REST tail). Token header'da (fetch-event-source), URL'de değil.
+- 🚀 **Deploy / Rollback (socket):** Mevcut image tag'lerini listele → seçilen tag'e geç. Tüm game-binary servisler (auth/db/ch*/quest-compiler) **Docker API üzerinden recreate** edilir (network/port/volume korunur; mariadb/haproxy dokunulmaz); canlı SSE terminali; healthcheck-wait; hata'da otomatik eski tag'e dönüş; geçmiş + "bu tag'e dön" rollback. **Sadece admin.** Dosya/compose-CLI bağımlılığı yok → panel ile MT2 ayrı sunucularda olabilir (`DOCKER_HOST=tcp://...`).
 - 🛡️ **İzole Docker erişimi:** Panel doğrudan Docker socket'e bağlanmaz; tüm trafik `docker-socket-proxy` üzerinden geçer (`EXEC=0`, `BUILD=0`).
 
 ---
@@ -221,6 +222,11 @@ POST /services/:name/stop           → graceful stop       (admin|operator)
 GET  /logs/:name?tail=N             → son N satır (REST, parse edilmiş)
 GET  /logs/:name/stream             → canlı log akışı (SSE, text/event-stream)
 
+GET  /deploy/tags                   → mevcut tag'ler + çalışan tag        (admin)
+POST /deploy                        → { tag } seçilen tag'e deploy        (admin)
+GET  /deploy/jobs/:id/stream        → deploy ilerlemesi (SSE)             (admin)
+GET  /deployments                   → deploy geçmişi/audit                (admin)
+
 GET  /health                        → { status: 'ok' }
 ```
 
@@ -293,7 +299,7 @@ mt2-panel/
 
 - ✅ **Faz 0** — Auth & altyapı (JWT, Postgres, Redis, socket-proxy)
 - ✅ **Faz 1** — Read-only izleme + restart/stop
-- ✅ **Faz 2** — Canlı log izleme (SSE) + level filtre/renk + quest-compiler tail (bu sürüm)
-- ⏳ **Faz 3** — Deploy/rollback (mevcut image tag'lerine) + container yaşam döngüsü *(image **build** kapsam dışı)*
+- ✅ **Faz 2** — Canlı log izleme (SSE) + level filtre/renk + quest-compiler tail
+- ✅ **Faz 3** — Deploy/rollback (socket recreate, mevcut image tag'lerine) + canlı SSE + geçmiş (bu sürüm) *(image **build** kapsam dışı)*
 - ⏳ **Faz 4** — Audit log + alerting + topoloji haritası
 - ⏳ 2FA (TOTP) — şema hazır, opsiyonel aktivasyon

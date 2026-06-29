@@ -1,5 +1,6 @@
 // apps/frontend/src/components/NavBar.tsx
 import { NavLink } from 'react-router-dom';
+import { useAuthStore } from '../store/auth';
 
 const links = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -8,6 +9,7 @@ const links = [
 ] as const;
 
 export function NavBar() {
+  const role = useAuthStore((s) => s.user?.role);
   return (
     <nav className="bg-gray-900 text-white px-6 py-3 flex gap-6 items-center">
       <span className="font-bold text-blue-400 mr-4">MT2 Panel</span>
@@ -24,6 +26,30 @@ export function NavBar() {
           {label}
         </NavLink>
       ))}
+      {role === 'admin' && (
+        <NavLink
+          to="/deploy"
+          className={({ isActive }) =>
+            isActive
+              ? 'text-blue-400 font-semibold underline underline-offset-4'
+              : 'hover:text-blue-300 transition-colors'
+          }
+        >
+          Deploy
+        </NavLink>
+      )}
+      {role === 'admin' && (
+        <NavLink
+          to="/deployments"
+          className={({ isActive }) =>
+            isActive
+              ? 'text-blue-400 font-semibold underline underline-offset-4'
+              : 'hover:text-blue-300 transition-colors'
+          }
+        >
+          Geçmiş
+        </NavLink>
+      )}
     </nav>
   );
 }

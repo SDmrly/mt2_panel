@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Services from './pages/Services';
 import ServiceDetail from './pages/ServiceDetail';
 import Logs from './pages/Logs';
+import Deploy from './pages/Deploy';
+import Deployments from './pages/Deployments';
 import { type ReactElement } from 'react';
 
 function AuthLayout({ children }: { children: ReactElement }) {
@@ -28,6 +30,8 @@ export default function App() {
         <Route path="/services" element={<AuthLayout><Services /></AuthLayout>} />
         <Route path="/services/:name" element={<AuthLayout><ServiceDetail /></AuthLayout>} />
         <Route path="/logs" element={<AuthLayout><Logs /></AuthLayout>} />
+        <Route path="/deploy" element={<AuthLayout><Deploy /></AuthLayout>} />
+        <Route path="/deployments" element={<AuthLayout><Deployments /></AuthLayout>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

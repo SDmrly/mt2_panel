@@ -4,10 +4,12 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health.controller';
 import { PanelUser } from './database/entities/panel-user.entity';
+import { Deployment } from './deploy/deployment.entity';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ContainersModule } from './containers/containers.module';
 import { LogsModule } from './logs/logs.module';
+import { DeployModule } from './deploy/deploy.module';
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { LogsModule } from './logs/logs.module';
         username: process.env.POSTGRES_USER,
         password: process.env.POSTGRES_PASSWORD,
         database: process.env.POSTGRES_DB,
-        entities: [PanelUser],
+        entities: [PanelUser, Deployment],
         synchronize: false,
       }),
     }),
@@ -28,6 +30,7 @@ import { LogsModule } from './logs/logs.module';
     AuthModule,
     ContainersModule,
     LogsModule,
+    DeployModule,
   ],
   controllers: [HealthController],
 })

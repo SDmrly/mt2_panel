@@ -7,6 +7,7 @@ export interface AppConfig {
   redis: { host: string; port: number; password?: string };
   dockerHost: string;
   mt2Project: string;
+  deploy: { gameRepo: string; dbRepo: string };
 }
 
 export function loadConfig(): AppConfig {
@@ -31,5 +32,6 @@ export function loadConfig(): AppConfig {
       password: process.env.REDIS_PASSWORD || undefined },
     dockerHost: req('DOCKER_HOST'),
     mt2Project: req('MT2_PROJECT'),
+    deploy: { gameRepo: req('DEPLOY_GAME_REPO'), dbRepo: req('DEPLOY_DB_REPO') },
   };
 }
