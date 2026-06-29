@@ -1,3 +1,9 @@
-docs/plan/
+node_modules/
+dist/
+docs/
 .env
-.claude
+*.log
+apps/*/dist/
+coverage/
+.claude/
+.superpowers/

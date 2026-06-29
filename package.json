@@ -1,0 +1,11 @@
+{
+  "name": "mt2-panel",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:be": "npm run start:dev --workspace apps/backend",
+    "dev:fe": "npm run dev --workspace apps/frontend",
+    "infra:up": "docker compose -f infra/docker-compose.dev.yml --env-file .env up -d",
+    "infra:down": "docker compose -f infra/docker-compose.dev.yml down"
+  }
+}
