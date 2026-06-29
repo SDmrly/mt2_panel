@@ -293,5 +293,3 @@ mt2-panel/
 - ⏳ **Faz 3** — Deploy/rollback (mevcut image tag'lerine) + container yaşam döngüsü *(image **build** kapsam dışı)*
 - ⏳ **Faz 4** — Audit log + alerting + topoloji haritası
 - ⏳ 2FA (TOTP) — şema hazır, opsiyonel aktivasyon
-
-Detaylar: [docs/plan/mt2-panel-mimari.md](docs/plan/mt2-panel-mimari.md) · [Spec 1](docs/plan/2026-06-28-faz0-1-foundation-design.md) · [Plan](docs/plan/2026-06-28-faz0-1-foundation-plan.md)
