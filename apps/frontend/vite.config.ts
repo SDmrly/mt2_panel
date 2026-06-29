@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Tek kök .env repo kökünde; Vite oradan okusun (VITE_API_URL vb.).
+  // Yalnızca VITE_ önekli değişkenler istemciye expose edilir (secret'lar sızmaz).
+  envDir: '../../',
   server: {
     port: 5173,
     proxy: {

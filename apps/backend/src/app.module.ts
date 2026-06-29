@@ -7,6 +7,7 @@ import { PanelUser } from './database/entities/panel-user.entity';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ContainersModule } from './containers/containers.module';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ContainersModule } from './containers/containers.module';
     RedisModule,
     AuthModule,
     ContainersModule,
+    LogsModule,
   ],
   controllers: [HealthController],
 })

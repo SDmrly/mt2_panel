@@ -33,6 +33,7 @@ Bu depo şu an **Faz 0 + Faz 1**'i içerir: kimlik doğrulama (panel kullanıcı
 - 📊 **Dinamik servis keşfi:** Çalışan MT2 container'ları Docker API'den otomatik keşfedilir (sabit liste yok). Yeni `metin2_ch*` eklenince panel yeniden başlatılmadan görünür.
 - ❤️ **Health & stats:** Healthcheck zinciri (database→db→auth→channel→haproxy), CPU/RAM/network grafiği, quest-compiler exit-code uyarısı.
 - 🔁 **Container işlemleri:** Graceful restart/stop (`--time=30`), onay modalı ile, sadece admin/operator.
+- 📜 **Canlı log izleme (SSE):** Servis seç → son 200 satır + canlı akış; Metin2 log formatı parse + level renklendirme (error→kırmızı, warning→sarı) + level filtresi; quest-compiler için tam çıktı (REST tail). Token header'da (fetch-event-source), URL'de değil.
 - 🛡️ **İzole Docker erişimi:** Panel doğrudan Docker socket'e bağlanmaz; tüm trafik `docker-socket-proxy` üzerinden geçer (`EXEC=0`, `BUILD=0`).
 
 ---
@@ -217,6 +218,9 @@ GET  /services/:name/healthcheck    → health durumu/log
 POST /services/:name/restart        → graceful restart   (admin|operator)
 POST /services/:name/stop           → graceful stop       (admin|operator)
 
+GET  /logs/:name?tail=N             → son N satır (REST, parse edilmiş)
+GET  /logs/:name/stream             → canlı log akışı (SSE, text/event-stream)
+
 GET  /health                        → { status: 'ok' }
 ```
 
@@ -288,8 +292,8 @@ mt2-panel/
 ## Yol haritası
 
 - ✅ **Faz 0** — Auth & altyapı (JWT, Postgres, Redis, socket-proxy)
-- ✅ **Faz 1** — Read-only izleme + restart/stop (bu sürüm)
-- ⏳ **Faz 2** — Canlı log streaming (WebSocket, quest-compiler log sekmesi)
+- ✅ **Faz 1** — Read-only izleme + restart/stop
+- ✅ **Faz 2** — Canlı log izleme (SSE) + level filtre/renk + quest-compiler tail (bu sürüm)
 - ⏳ **Faz 3** — Deploy/rollback (mevcut image tag'lerine) + container yaşam döngüsü *(image **build** kapsam dışı)*
 - ⏳ **Faz 4** — Audit log + alerting + topoloji haritası
 - ⏳ 2FA (TOTP) — şema hazır, opsiyonel aktivasyon

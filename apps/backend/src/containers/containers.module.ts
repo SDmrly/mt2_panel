@@ -15,5 +15,6 @@ import { loadConfig } from '../config/config';
     inject: [DOCKER],
     useFactory: (docker: Docker) => new ContainersService(docker, loadConfig().mt2Project),
   }],
+  exports: [ContainersService],
 })
 export class ContainersModule {}
