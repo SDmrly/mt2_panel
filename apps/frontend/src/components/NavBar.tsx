@@ -62,6 +62,18 @@ export function NavBar() {
           Audit
         </NavLink>
       )}
+      {role === 'admin' && (
+        <NavLink
+          to="/users"
+          className={({ isActive }) =>
+            isActive
+              ? 'text-blue-400 font-semibold underline underline-offset-4'
+              : 'hover:text-blue-300 transition-colors'
+          }
+        >
+          Kullanıcılar
+        </NavLink>
+      )}
     </nav>
   );
 }

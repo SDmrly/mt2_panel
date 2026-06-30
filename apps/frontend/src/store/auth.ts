@@ -4,6 +4,7 @@ interface User {
   id: string;
   username: string;
   role: 'admin' | 'operator' | 'viewer';
+  status: 'pending' | 'active' | 'disabled';
 }
 
 interface AuthState {

@@ -1,6 +1,7 @@
 // apps/backend/src/database/entities/panel-user.entity.ts
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 export type PanelRole = 'admin' | 'operator' | 'viewer';
+export type PanelStatus = 'pending' | 'active' | 'disabled';
 
 @Entity('panel_users')
 export class PanelUser {
@@ -12,4 +13,6 @@ export class PanelUser {
   @Column({ name: 'totp_enabled', default: false }) totpEnabled!: boolean;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @Column({ name: 'last_login', type: 'timestamptz', nullable: true }) lastLogin!: Date | null;
+  @Column({ type: 'varchar', unique: true, nullable: true }) email!: string | null;
+  @Column({ type: 'varchar', default: 'pending' }) status!: PanelStatus;
 }

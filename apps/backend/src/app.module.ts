@@ -12,6 +12,7 @@ import { ContainersModule } from './containers/containers.module';
 import { LogsModule } from './logs/logs.module';
 import { DeployModule } from './deploy/deploy.module';
 import { AuditModule } from './audit/audit.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AuditModule } from './audit/audit.module';
     RedisModule,
     AuthModule,
     AuditModule,
+    UsersModule,
     ContainersModule,
     LogsModule,
     DeployModule,

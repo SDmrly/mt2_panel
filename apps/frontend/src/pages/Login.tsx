@@ -1,6 +1,6 @@
 // apps/frontend/src/pages/Login.tsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../lib/api';
 import { useAuthStore } from '../store/auth';
 export default function Login() {
@@ -23,6 +23,7 @@ export default function Login() {
         <input type="password" className="w-full border p-2 rounded" value={password} onChange={(e) => setP(e.target.value)} /></label>
       {err && <p className="text-red-500 text-sm">{err}</p>}
       <button className="w-full bg-blue-600 text-white p-2 rounded" type="submit">Giriş</button>
+      <Link to="/register" className="block text-center text-sm text-blue-600">Hesabın yok mu? Kayıt ol</Link>
     </form>
   );
 }

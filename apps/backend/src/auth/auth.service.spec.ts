@@ -1,10 +1,10 @@
 // apps/backend/src/auth/auth.service.spec.ts
 import { AuthService } from './auth.service';
 import { HashService } from './hash.service';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 
-const user = { id: 'u1', username: 'admin', role: 'admin', passwordHash: '' };
-const repo = () => ({ findOne: jest.fn(), update: jest.fn() }) as any;
+const user = { id: 'u1', username: 'admin', role: 'admin', status: 'active', passwordHash: '' };
+const repo = () => ({ findOne: jest.fn(), update: jest.fn(), save: jest.fn(), create: jest.fn((v: any) => v) }) as any;
 const jwt = () => ({ signAsync: jest.fn().mockResolvedValue('tok'), verifyAsync: jest.fn() }) as any;
 const bl = () => ({ saveRefresh: jest.fn(), blacklist: jest.fn(), isBlacklisted: jest.fn(), getRefresh: jest.fn(), revokeRefresh: jest.fn(), linkAccessToRefresh: jest.fn(), getLinkedRefresh: jest.fn().mockResolvedValue(null) }) as any;
 
@@ -36,7 +36,8 @@ describe('AuthService.refresh', () => {
   it('geçerli refresh token → accessToken döner ve signAsync çağrılır', async () => {
     const j = jwt(); j.verifyAsync.mockResolvedValue({ ...validPayload });
     const b = bl(); b.getRefresh.mockResolvedValue('u1');
-    const svc = new AuthService(repo(), new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
+    const r = repo(); r.findOne.mockResolvedValue({ id: 'u1', username: 'admin', role: 'admin', status: 'active' });
+    const svc = new AuthService(r, new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
     const res = await svc.refresh('sometoken');
     expect(res.accessToken).toBeDefined();
     expect(j.signAsync).toHaveBeenCalled();
@@ -53,6 +54,14 @@ describe('AuthService.refresh', () => {
     const j = jwt(); j.verifyAsync.mockResolvedValue({ ...validPayload });
     const b = bl(); b.getRefresh.mockResolvedValue(null);
     const svc = new AuthService(repo(), new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
+    await expect(svc.refresh('sometoken')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('kullanıcı disabled ise refresh → UnauthorizedException', async () => {
+    const j = jwt(); j.verifyAsync.mockResolvedValue({ ...validPayload });
+    const b = bl(); b.getRefresh.mockResolvedValue('u1');
+    const r = repo(); r.findOne.mockResolvedValue({ id: 'u1', username: 'admin', role: 'admin', status: 'disabled' });
+    const svc = new AuthService(r, new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
     await expect(svc.refresh('sometoken')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
@@ -82,5 +91,25 @@ describe('AuthService.logout', () => {
     await svc.logout('jti-123');
     expect(b.blacklist).toHaveBeenCalledWith('jti-123', 900);
     expect(b.revokeRefresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.register', () => {
+  it('register: yeni pending+viewer kullanıcı oluşturur', async () => {
+    const r = repo(); r.findOne.mockResolvedValue(null);
+    const svc = new AuthService(r, new HashService(), jwt(), bl(), { secret:'s', accessTtl:900, refreshTtl:604800 } as any);
+    await svc.register({ username: 'yeni', email: 'y@x.com', password: 'parola12' });
+    expect(r.save).toHaveBeenCalledWith(expect.objectContaining({ username: 'yeni', email: 'y@x.com', status: 'pending', role: 'viewer' }));
+  });
+  it('register: kullanıcı/email varsa ConflictException', async () => {
+    const r = repo(); r.findOne.mockResolvedValue({ id: 'u1' });
+    const svc = new AuthService(r, new HashService(), jwt(), bl(), { secret:'s', accessTtl:900, refreshTtl:604800 } as any);
+    await expect(svc.register({ username: 'a', email: 'a@x.com', password: 'parola12' })).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('login: disabled kullanıcı UnauthorizedException', async () => {
+    const r = repo(); const hash = new HashService();
+    r.findOne.mockResolvedValue({ id:'u1', username:'a', role:'viewer', status:'disabled', passwordHash: await hash.hash('parola12') });
+    const svc = new AuthService(r, hash, jwt(), bl(), { secret:'s', accessTtl:900, refreshTtl:604800 } as any);
+    await expect(svc.login({ username:'a', password:'parola12' })).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

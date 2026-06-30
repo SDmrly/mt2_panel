@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, map } from 'rxjs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActiveGuard } from '../auth/guards/active.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TagService } from './tag.service';
@@ -11,7 +12,7 @@ import { DeployService } from './deploy.service';
 import { Deployment } from './deployment.entity';
 import { AuditService } from '../audit/audit.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveGuard, RolesGuard)
 @Roles('admin')
 @Controller()
 export class DeployController {

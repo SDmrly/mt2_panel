@@ -2,9 +2,10 @@
 import { Controller, Get, MessageEvent, Param, Query, Sse, UseGuards } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActiveGuard } from '../auth/guards/active.guard';
 import { LogsService } from './logs.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveGuard)
 @Controller('logs')
 export class LogsController {
   constructor(private readonly logs: LogsService) {}

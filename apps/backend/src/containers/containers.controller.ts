@@ -1,12 +1,13 @@
 // apps/backend/src/containers/containers.controller.ts
 import { Controller, Get, HttpCode, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActiveGuard } from '../auth/guards/active.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ContainersService } from './containers.service';
 import { AuditService } from '../audit/audit.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveGuard, RolesGuard)
 @Controller('services')
 export class ContainersController {
   constructor(private readonly svc: ContainersService, private readonly audit: AuditService) {}

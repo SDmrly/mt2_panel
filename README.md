@@ -30,6 +30,7 @@ Bu depo şu an **Faz 0 + Faz 1**'i içerir: kimlik doğrulama (panel kullanıcı
 ## Özellikler
 
 - 🔐 **Auth:** Panel kullanıcıları PostgreSQL'de (oyundan bağımsız), şifreler **bcrypt**. JWT access (15dk) + refresh (7gün, Redis). Logout → token blacklist. Roller: `admin`, `operator`, `viewer`.
+- 👤 **Üyelik + onay:** Public kayıt (`/register`, kullanıcı adı+e-posta+şifre) → kullanıcı **pending** (giriş yapar ama hiçbir şey yapamaz, "onay bekleniyor" ekranı). Admin `/users`'tan **onaylar + rol verir** → erişim açılır. `disabled` giriş yapamaz; disable **anında** etkili (JWT canlı DB kontrolü). Admin kendini veya **son aktif admin'i** kilitleyemez. Tüm kullanıcı-yönetimi + kayıt eylemleri audit'lenir.
 - 📊 **Dinamik servis keşfi:** Çalışan MT2 container'ları Docker API'den otomatik keşfedilir (sabit liste yok). Yeni `metin2_ch*` eklenince panel yeniden başlatılmadan görünür.
 - ❤️ **Health & stats:** Healthcheck zinciri (database→db→auth→channel→haproxy), CPU/RAM/network grafiği, quest-compiler exit-code uyarısı.
 - 🔁 **Container işlemleri:** Graceful restart/stop (`--time=30`), onay modalı ile, sadece admin/operator.
@@ -228,7 +229,11 @@ POST /deploy                        → { tag } seçilen tag'e deploy        (ad
 GET  /deploy/jobs/:id/stream        → deploy ilerlemesi (SSE)             (admin)
 GET  /deployments                   → deploy geçmişi                       (admin)
 
-GET  /audit                         → audit log (action/userId/tarih filtre) (admin)
+GET  /audit                         → audit log (action/username/tarih filtre) (admin)
+
+POST /auth/register                 → public kayıt (pending kullanıcı)
+GET  /users                         → kullanıcı listesi                   (admin)
+PATCH/DELETE /users/:id             → onayla+rol / rol / disable / sil    (admin)
 
 GET  /health                        → { status: 'ok' }
 ```
@@ -304,6 +309,7 @@ mt2-panel/
 - ✅ **Faz 1** — Read-only izleme + restart/stop
 - ✅ **Faz 2** — Canlı log izleme (SSE) + level filtre/renk + quest-compiler tail
 - ✅ **Faz 3** — Deploy/rollback (socket recreate, mevcut image tag'lerine) + canlı SSE + geçmiş *(image **build** kapsam dışı)*
-- ✅ **Faz 4** — Merkezi audit log (login/başarısız-login/restart/stop/deploy, filtreli, admin) (bu sürüm)
-- ⏳ **Son faz (görsel)** — UI/UX cila + topoloji haritası; opsiyonel: FATAL log alarmı (webhook/e-posta), haftalık rapor
+- ✅ **Faz 4** — Merkezi audit log (login/başarısız-login/restart/stop/deploy, filtreli, admin)
+- ✅ **Faz 5** — Üyelik + onay kapısı + admin kullanıcı yönetimi (pending/active/disabled, lockout-önleme, audit) (bu sürüm)
+- ⏳ **Son faz (görsel)** — Kurumsal UI/UX cila (dashboard, modal'lar, tema) + topoloji haritası; opsiyonel: FATAL log alarmı, haftalık rapor
 - ⏳ 2FA (TOTP) — şema hazır, opsiyonel aktivasyon

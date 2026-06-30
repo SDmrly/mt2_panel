@@ -2,6 +2,7 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 
@@ -11,6 +12,19 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly audit: AuditService,
   ) {}
+
+  @Post('register')
+  @HttpCode(201)
+  async register(@Body() dto: RegisterDto, @Req() req: any) {
+    try {
+      await this.auth.register(dto);
+      await this.audit.record({ action: 'register', result: 'success', username: dto.username, ip: req.ip });
+      return { ok: true };
+    } catch (e) {
+      await this.audit.record({ action: 'register', result: 'failure', username: dto.username, ip: req.ip, detail: { reason: 'duplicate or invalid' } });
+      throw e;
+    }
+  }
 
   @Post('login')
   @HttpCode(200)
@@ -41,6 +55,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@Req() req: any) {
-    return { id: req.user.id, username: req.user.username, role: req.user.role };
+    return { id: req.user.id, username: req.user.username, role: req.user.role, status: req.user.status };
   }
 }

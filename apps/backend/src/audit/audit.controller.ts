@@ -1,11 +1,12 @@
 // apps/backend/src/audit/audit.controller.ts
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActiveGuard } from '../auth/guards/active.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuditService } from './audit.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveGuard, RolesGuard)
 @Roles('admin')
 @Controller('audit')
 export class AuditController {
