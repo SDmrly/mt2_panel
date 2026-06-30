@@ -11,6 +11,7 @@ import { LogSanitizeInterceptor } from './common/interceptors/log-sanitize.inter
 async function bootstrap() {
   const cfg = loadConfig();
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new LogSanitizeInterceptor());
   app.enableCors({ origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(',').map(s => s.trim()), credentials: true });

@@ -5,11 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health.controller';
 import { PanelUser } from './database/entities/panel-user.entity';
 import { Deployment } from './deploy/deployment.entity';
+import { AuditLog } from './audit/audit-log.entity';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ContainersModule } from './containers/containers.module';
 import { LogsModule } from './logs/logs.module';
 import { DeployModule } from './deploy/deploy.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -22,12 +24,13 @@ import { DeployModule } from './deploy/deploy.module';
         username: process.env.POSTGRES_USER,
         password: process.env.POSTGRES_PASSWORD,
         database: process.env.POSTGRES_DB,
-        entities: [PanelUser, Deployment],
+        entities: [PanelUser, Deployment, AuditLog],
         synchronize: false,
       }),
     }),
     RedisModule,
     AuthModule,
+    AuditModule,
     ContainersModule,
     LogsModule,
     DeployModule,

@@ -9,6 +9,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { TagService } from './tag.service';
 import { DeployService } from './deploy.service';
 import { Deployment } from './deployment.entity';
+import { AuditService } from '../audit/audit.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
@@ -18,10 +19,20 @@ export class DeployController {
     private readonly tags: TagService,
     private readonly deploy: DeployService,
     @InjectRepository(Deployment) private readonly repo: Repository<Deployment>,
+    private readonly audit: AuditService,
   ) {}
 
   @Get('deploy/tags') listTags() { return this.tags.listTags(); }
-  @Post('deploy') start(@Body('tag') tag: string, @Req() req: any) { return this.deploy.startDeploy(tag, req.user.id); }
+  @Post('deploy') async start(@Body('tag') tag: string, @Req() req: any) {
+    try {
+      const res = await this.deploy.startDeploy(tag, req.user.id);
+      await this.audit.record({ action: 'deploy', result: 'success', userId: req.user.id, username: req.user.username, target: tag, ip: req.ip, detail: { jobId: res.jobId } });
+      return res;
+    } catch (e: any) {
+      await this.audit.record({ action: 'deploy', result: 'failure', userId: req.user.id, username: req.user.username, target: tag, ip: req.ip, detail: { error: String(e?.message ?? e) } });
+      throw e;
+    }
+  }
   @Sse('deploy/jobs/:id/stream') stream(@Param('id') id: string): Observable<MessageEvent> {
     return this.deploy.streamJob(id).pipe(map((data) => ({ data }) as MessageEvent));
   }

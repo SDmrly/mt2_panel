@@ -1,7 +1,8 @@
 // apps/backend/test/health.e2e-spec.ts
 import { Test } from '@nestjs/testing';
 import { INestApplication, Controller, Get, Module } from '@nestjs/common';
-import * as request from 'supertest';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const request = require('supertest');
 
 @Controller('health')
 class HealthController { @Get() ok() { return { status: 'ok' }; } }
