@@ -6,6 +6,7 @@ export interface TagInfo {
   sizeMb: number;
   isRunning: boolean;
   deployable: boolean;
+  note: string | null;
 }
 export interface DeployTags {
   game: TagInfo[];

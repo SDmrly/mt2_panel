@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health.controller';
 import { PanelUser } from './database/entities/panel-user.entity';
 import { Deployment } from './deploy/deployment.entity';
+import { ReleaseNote } from './deploy/release-note.entity';
 import { AuditLog } from './audit/audit-log.entity';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -26,7 +27,7 @@ import { SystemModule } from './system/system.module';
         username: process.env.POSTGRES_USER,
         password: process.env.POSTGRES_PASSWORD,
         database: process.env.POSTGRES_DB,
-        entities: [PanelUser, Deployment, AuditLog],
+        entities: [PanelUser, Deployment, AuditLog, ReleaseNote],
         synchronize: false,
       }),
     }),

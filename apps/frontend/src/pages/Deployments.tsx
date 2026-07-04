@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { apiClient } from '../lib/api';
 import { apiErrorText } from '../lib/apiError';
 import { useDeployments } from '../hooks/useDeployments';
-import { Deployment, DeployStatus } from '../types/deploy';
+import { useDeployTags } from '../hooks/useDeployTags';
+import { Deployment, DeployKind, DeployStatus } from '../types/deploy';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import {
@@ -27,10 +28,14 @@ const STATUS_VARIANT: Record<DeployStatus, 'success' | 'destructive' | 'warning'
 export default function Deployments() {
   const { t } = useTranslation();
   const { data, isLoading, refetch } = useDeployments();
+  const { data: tags } = useDeployTags();
   const [busy, setBusy] = useState(false);
   const [rollbackTarget, setRollbackTarget] = useState<Deployment | null>(null);
 
   if (isLoading || !data) return <p className="p-6 text-[var(--muted)]">{t('common.loading')}</p>;
+
+  const noteFor = (kind: DeployKind, tag: string): string | null =>
+    (kind === 'game' ? tags?.game : tags?.db)?.find((info) => info.name === tag)?.note ?? null;
 
   const confirmRollback = async () => {
     const target = rollbackTarget;
@@ -61,6 +66,7 @@ export default function Deployments() {
               <th className="font-medium">{t('deployments.kind')}</th>
               <th className="font-medium">{t('deployments.status')}</th>
               <th className="font-medium">{t('deployments.user')}</th>
+              <th className="font-medium">{t('deployments.note')}</th>
               <th className="font-medium text-right">{t('deployments.action')}</th>
             </tr>
           </thead>
@@ -79,6 +85,16 @@ export default function Deployments() {
                   )}
                 </td>
                 <td className="text-[var(--muted)] text-xs">{d.userId}</td>
+                <td className="text-[var(--muted)] text-xs max-w-[180px]">
+                  {(() => {
+                    const note = noteFor(d.kind, d.toTag);
+                    return note ? (
+                      <span className="truncate block" title={note}>{note}</span>
+                    ) : (
+                      <span className="text-[var(--faint)]">—</span>
+                    );
+                  })()}
+                </td>
                 <td className="text-right">
                   {d.fromTag && (
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => setRollbackTarget(d)}>
@@ -90,7 +106,7 @@ export default function Deployments() {
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-4 text-center text-[var(--faint)] text-xs">{t('deployments.noRecords')}</td>
+                <td colSpan={7} className="py-4 text-center text-[var(--faint)] text-xs">{t('deployments.noRecords')}</td>
               </tr>
             )}
           </tbody>

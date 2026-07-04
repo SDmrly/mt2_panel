@@ -1,5 +1,5 @@
 // apps/backend/src/deploy/deploy.controller.ts
-import { Body, Controller, Delete, Get, HttpStatus, MessageEvent, Param, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpStatus, MessageEvent, Param, Post, Put, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, map } from 'rxjs';
@@ -51,5 +51,10 @@ export class DeployController {
   @Delete('deploy/images/:kind/:tag') deleteImage(@Param('kind') kind: unknown, @Param('tag') tag: string, @Req() req: any) {
     assertKind(kind);
     return this.deploy.deleteImage(kind, tag, req.user);
+  }
+  @Put('deploy/images/:kind/:tag/note')
+  updateNote(@Param('kind') kind: unknown, @Param('tag') tag: string, @Body('note') note: string, @Req() req: any) {
+    assertKind(kind);
+    return this.deploy.updateNote(kind, tag, note ?? '', req.user);
   }
 }

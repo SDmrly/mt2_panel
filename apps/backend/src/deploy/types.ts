@@ -7,6 +7,7 @@ export interface TagInfo {
   sizeMb: number;      // image.Size byte -> MB
   isRunning: boolean;  // bu repo için şu an çalışan container'ın image tag'i mi
   deployable: boolean; // !isRunning — çalışmayan tag'ler deploy edilebilir
+  note: string | null; // bu tag için release notu (varsa)
 }
 export interface DeployEvent {
   type: 'log' | 'step' | 'done' | 'failed' | 'rollback';

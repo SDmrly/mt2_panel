@@ -21,13 +21,14 @@ const tagService = () => ({
 const cfg = { gameRepo: 'ghcr.io/changeme/metin2-game', dbRepo: 'ghcr.io/changeme/metin2-db' } as any;
 const dockerStub = () => ({}) as any;
 const auditStub = () => ({ record: jest.fn().mockResolvedValue(undefined) }) as any;
+const notesStub = () => ({ upsert: jest.fn().mockResolvedValue(undefined), getMap: jest.fn().mockResolvedValue(new Map()) }) as any;
 
 describe('DeployService', () => {
   describe('startDeploy per-kind', () => {
     it('startDeploy(game): sadece game repo konteynerlerini recreate eder, dbRepo dokunulmaz, done', async () => {
       const calls: any[] = [];
       const recreator = { recreate: jest.fn(async (n, img) => { calls.push([n, img]); }) };
-      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       const { jobId } = await svc.startDeploy('game', 'v1', 'u1');
       expect(jobId).toBeDefined();
       const events = await firstValueFrom(svc.streamJob(jobId).pipe(toArray()));
@@ -44,7 +45,7 @@ describe('DeployService', () => {
     it('startDeploy(game): healthcheck sadece recreate edilen game konteynerleri için yapılır (metin2_db poll edilmez)', async () => {
       const recreator = { recreate: jest.fn().mockResolvedValue(undefined) };
       const c = containers();
-      const svc = new DeployService(repo(), c, recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), c, recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       const { jobId } = await svc.startDeploy('game', 'v1', 'u1');
       const events = await firstValueFrom(svc.streamJob(jobId).pipe(toArray()));
       const healthNames = c.getHealth.mock.calls.map((args: any[]) => args[0]);
@@ -56,7 +57,7 @@ describe('DeployService', () => {
     it('startDeploy(db): sadece db repo konteynerini recreate eder, gameRepo dokunulmaz, done', async () => {
       const calls: any[] = [];
       const recreator = { recreate: jest.fn(async (n, img) => { calls.push([n, img]); }) };
-      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       const { jobId } = await svc.startDeploy('db', 'v1', 'u1');
       const events = await firstValueFrom(svc.streamJob(jobId).pipe(toArray()));
       expect(calls).toEqual([['metin2_db', 'ghcr.io/changeme/metin2-db:v1']]);
@@ -67,7 +68,7 @@ describe('DeployService', () => {
     it('Deployment kaydına kind yazılır', async () => {
       const r = repo();
       const recreator = { recreate: jest.fn().mockResolvedValue(undefined) };
-      const svc = new DeployService(r, containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(r, containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       await svc.startDeploy('db', 'v1', 'u1');
       expect(r.save).toHaveBeenCalledWith(expect.objectContaining({ kind: 'db', toTag: 'v1' }));
     });
@@ -75,7 +76,7 @@ describe('DeployService', () => {
     it('recreate hatası (game): fromTag\'e geri recreate (rollback), failed', async () => {
       let n = 0;
       const recreator = { recreate: jest.fn(async () => { if (n++ === 1) throw new Error('boom'); }) };
-      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       const { jobId } = await svc.startDeploy('game', 'v1', 'u1');
       const events = await firstValueFrom(svc.streamJob(jobId).pipe(toArray()));
       expect(events.some((e) => e.type === 'rollback')).toBe(true);
@@ -91,13 +92,13 @@ describe('DeployService', () => {
           currentDb: 'latest',
         }),
       } as any;
-      const svc = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, ts, cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, ts, cfg, dockerStub(), auditStub(), notesStub());
       await expect(svc.startDeploy('game', 'v1', 'u1')).rejects.toMatchObject({ response: { code: 'invalid_tag' }, status: 400 });
     });
 
     it('aktif deploy varken ikinci istek → deploy_in_progress (409)', async () => {
       const recreator = { recreate: jest.fn(() => new Promise<void>(() => {})) }; // asla bitmez
-      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
+      const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub(), notesStub());
       await svc.startDeploy('game', 'v1', 'u1');
       await expect(svc.startDeploy('db', 'v1', 'u1')).rejects.toMatchObject({ response: { code: 'deploy_in_progress' }, status: 409 });
     });
@@ -111,7 +112,7 @@ describe('DeployService', () => {
     beforeEach(() => {
       docker = {};
       audit = { record: jest.fn().mockResolvedValue(undefined) };
-      service = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, tagService(), cfg, docker, audit);
+      service = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, tagService(), cfg, docker, audit, notesStub());
     });
 
     it('deleteImage(game, tag) sadece gameRepo image siler + audit, userId actor.id\'den gelir', async () => {
@@ -152,6 +153,40 @@ describe('DeployService', () => {
       docker.getImage = jest.fn().mockReturnValue({ remove: jest.fn().mockRejectedValue(err) });
       await expect(service.deleteImage('game', 'v1', { id: 'u1', username: 'admin' } as any)).rejects.toBe(err);
       expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'image_delete', result: 'failure', target: 'game:v1' }));
+    });
+  });
+
+  describe('updateNote', () => {
+    let service: DeployService;
+    let notes: any;
+    let audit: any;
+
+    beforeEach(() => {
+      notes = notesStub();
+      audit = auditStub();
+      service = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, tagService(), cfg, dockerStub(), audit, notes);
+    });
+
+    it('updateNote > 2000 char → note_too_long (400)', async () => {
+      await expect(service.updateNote('game', 'v1', 'x'.repeat(2001), { id: 'u1', username: 'a' } as any))
+        .rejects.toMatchObject({ status: 400, response: { code: 'note_too_long' } });
+      expect(notes.upsert).not.toHaveBeenCalled();
+    });
+
+    it('updateNote tam 2000 karakter → kabul edilir (sınır dahil)', async () => {
+      await expect(service.updateNote('game', 'v1', 'x'.repeat(2000), { id: 'u1', username: 'a' } as any)).resolves.toEqual({ ok: true });
+    });
+
+    it('updateNote upsert eder + audit note_update', async () => {
+      await service.updateNote('game', 'v1', 'not', { id: 'u1', username: 'a' } as any);
+      expect(notes.upsert).toHaveBeenCalledWith('game', 'v1', 'not', 'u1');
+      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'note_update', target: 'game:v1' }));
+    });
+
+    it('updateNote userId actor.sub fallback (id yoksa)', async () => {
+      await service.updateNote('db', 'v2', 'not', { sub: 'u2', username: 'a' } as any);
+      expect(notes.upsert).toHaveBeenCalledWith('db', 'v2', 'not', 'u2');
+      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u2', target: 'db:v2' }));
     });
   });
 });

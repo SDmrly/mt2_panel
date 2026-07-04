@@ -79,7 +79,13 @@
     "deleteConfirm": "Delete {{tag}} ({{kind}})?",
     "deployStarted": "{{tag}} deploy started",
     "deleted": "Image deleted",
-    "statusLabel": "status: {{status}}"
+    "statusLabel": "status: {{status}}",
+    "note": "Note",
+    "noteTitle": "Release note",
+    "addNote": "Add note",
+    "editNote": "Edit note",
+    "notePlaceholder": "What changed in this version?",
+    "noteSaved": "Note saved"
   },
   "deployments": {
     "title": "Deployment History",
@@ -89,6 +95,7 @@
     "status": "Status",
     "user": "User",
     "action": "Action",
+    "note": "Note",
     "rollback": "Rollback",
     "noRecords": "No records",
     "confirmTitle": "Confirm rollback",
@@ -178,6 +185,7 @@
     "cannot_modify_last_admin": "Cannot modify the last active admin",
     "cannot_delete_last_admin": "The last active admin cannot be deleted",
     "cannot_modify_self": "You cannot modify yourself",
-    "cannot_delete_self": "You cannot delete yourself"
+    "cannot_delete_self": "You cannot delete yourself",
+    "note_too_long": "Note cannot exceed 2000 characters"
   }
 }

@@ -15,6 +15,19 @@ vi.mock('../hooks/useDeployments', () => ({
   }),
 }));
 
+vi.mock('../hooks/useDeployTags', () => ({
+  useDeployTags: () => ({
+    data: {
+      game: [{ name: 'v1', createdAt: '2026-06-29T09:00:00Z', sizeMb: 100, isRunning: true, deployable: true, note: 'sürüm notu' }],
+      db: [],
+      currentGame: 'v1',
+      currentDb: null,
+    },
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock('../lib/api', () => ({
   apiClient: { post: vi.fn().mockResolvedValue({ data: { jobId: 'j1' } }) },
 }));
@@ -29,6 +42,11 @@ it('geçmiş satırını ve rollback butonunu gösterir', () => {
   expect(screen.getByText(/v1/)).toBeInTheDocument();
   expect(screen.getByText(/success/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /geri al/i })).toBeInTheDocument();
+});
+
+it('geçmiş satırında toTag notu gösterilir', () => {
+  renderPage();
+  expect(screen.getByText(/sürüm notu/)).toBeInTheDocument();
 });
 
 it('rollback bir onay dialogu açar, onaylayınca mutasyonu çağırır', async () => {

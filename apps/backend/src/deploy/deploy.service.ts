@@ -10,6 +10,7 @@ import { ContainersService } from '../containers/containers.service';
 import { AppException } from '../common/app-exception';
 import { TagService } from './tag.service';
 import { AuditService } from '../audit/audit.service';
+import { NotesService } from './notes.service';
 
 interface DeployCfg { gameRepo: string; dbRepo: string; }
 const GAME_ROLES = new Set(['auth', 'channel', 'quest-compiler']);
@@ -27,6 +28,7 @@ export class DeployService {
     private readonly cfg: DeployCfg,
     private readonly docker: Docker,
     private readonly audit: AuditService,
+    private readonly notes: NotesService,
   ) {}
 
   private repoFor(kind: DeployKind): string {
@@ -67,6 +69,16 @@ export class DeployService {
       .record({ action: 'image_delete', result: 'success', userId, username: actor.username, target: `${kind}:${tag}` })
       .catch(() => {});
     return { deleted: `${kind}:${tag}` };
+  }
+
+  async updateNote(kind: DeployKind, tag: string, note: string, actor: { sub?: string; id?: string; username: string }) {
+    if ((note ?? '').length > 2000) throw new AppException('note_too_long', HttpStatus.BAD_REQUEST, 'Not 2000 karakteri aşamaz');
+    const userId = actor.id ?? actor.sub ?? null;
+    await this.notes.upsert(kind, tag, note ?? '', userId);
+    await this.audit
+      .record({ action: 'note_update', result: 'success', userId, username: actor.username, target: `${kind}:${tag}` })
+      .catch(() => {});
+    return { ok: true };
   }
 
   streamJob(jobId: string): Observable<DeployEvent> {

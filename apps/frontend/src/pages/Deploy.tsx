@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from '../components/ui/dialog';
 import { toast } from 'sonner';
+import { NotebookPen } from 'lucide-react';
 
 interface ConfirmTarget { kind: DeployKind; tag: TagInfo; }
 
@@ -28,6 +29,7 @@ function ImageTable({
   current,
   onDeploy,
   onDelete,
+  onNoteSaved,
 }: {
   kind: DeployKind;
   title: string;
@@ -35,8 +37,29 @@ function ImageTable({
   current: string | null;
   onDeploy: (kind: DeployKind, tag: TagInfo) => void;
   onDelete: (kind: DeployKind, tag: TagInfo) => void;
+  onNoteSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const [noteTarget, setNoteTarget] = useState<TagInfo | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+
+  const openNote = (tag: TagInfo) => {
+    setNoteTarget(tag);
+    setNoteDraft(tag.note ?? '');
+  };
+
+  const saveNote = async () => {
+    if (!noteTarget) return;
+    try {
+      await apiClient.put(`/deploy/images/${kind}/${noteTarget.name}/note`, { note: noteDraft });
+      toast.success(t('deploy.noteSaved'));
+      onNoteSaved();
+      setNoteTarget(null);
+    } catch (err: any) {
+      toast.error(apiErrorText(err, t));
+    }
+  };
+
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
@@ -51,6 +74,7 @@ function ImageTable({
             <th className="py-1.5 font-medium">{t('deploy.tag')}</th>
             <th className="font-medium">{t('deploy.created')}</th>
             <th className="font-medium">{t('deploy.size')}</th>
+            <th className="font-medium">{t('deploy.note')}</th>
             <th className="font-medium text-right">{t('deploy.action')}</th>
           </tr>
         </thead>
@@ -72,6 +96,24 @@ function ImageTable({
                 <div className="text-[var(--faint)]">{timeAgo(tag.createdAt, t)}</div>
               </td>
               <td className="text-[var(--muted)] text-xs">{tag.sizeMb} MB</td>
+              <td className="text-[var(--muted)] text-xs max-w-[180px]">
+                <div className="flex items-center gap-1.5">
+                  {tag.note ? (
+                    <span className="truncate" title={tag.note}>{tag.note}</span>
+                  ) : (
+                    <span className="text-[var(--faint)]">—</span>
+                  )}
+                  <button
+                    type="button"
+                    className="shrink-0 text-[var(--muted)] hover:text-[var(--foreground)]"
+                    aria-label={tag.note ? t('deploy.editNote') : t('deploy.addNote')}
+                    title={tag.note ? t('deploy.editNote') : t('deploy.addNote')}
+                    onClick={() => openNote(tag)}
+                  >
+                    <NotebookPen className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </td>
               <td className="text-right space-x-2">
                 <Button size="sm" variant="destructive" disabled={tag.isRunning} onClick={() => onDelete(kind, tag)}>
                   {t('deploy.delete')}
@@ -84,13 +126,34 @@ function ImageTable({
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={4} className="py-4 text-center text-[var(--faint)] text-xs">
+              <td colSpan={5} className="py-4 text-center text-[var(--faint)] text-xs">
                 {t('deploy.noImages')}
               </td>
             </tr>
           )}
         </tbody>
       </table>
+
+      <Dialog open={!!noteTarget} onOpenChange={(open) => !open && setNoteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('deploy.noteTitle')}
+              {noteTarget && ` — ${kind}:${noteTarget.name}`}
+            </DialogTitle>
+          </DialogHeader>
+          <textarea
+            className="w-full min-h-[120px] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] p-2 text-sm"
+            placeholder={t('deploy.notePlaceholder')}
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="default" onClick={saveNote}>{t('common.save')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -142,6 +205,7 @@ export default function Deploy() {
         current={data?.currentGame ?? null}
         onDeploy={(kind, tag) => setDeployTarget({ kind, tag })}
         onDelete={(kind, tag) => setDeleteTarget({ kind, tag })}
+        onNoteSaved={refetch}
       />
       <ImageTable
         kind="db"
@@ -150,6 +214,7 @@ export default function Deploy() {
         current={data?.currentDb ?? null}
         onDeploy={(kind, tag) => setDeployTarget({ kind, tag })}
         onDelete={(kind, tag) => setDeleteTarget({ kind, tag })}
+        onNoteSaved={refetch}
       />
 
       <Dialog open={!!deployTarget} onOpenChange={(open) => !open && setDeployTarget(null)}>

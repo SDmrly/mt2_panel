@@ -2,12 +2,18 @@
 import { Injectable } from '@nestjs/common';
 import Docker from 'dockerode';
 import { TagInfo } from './types';
+import { NotesService } from './notes.service';
 
 interface DeployCfg { gameRepo: string; dbRepo: string; }
 
 @Injectable()
 export class TagService {
-  constructor(private readonly docker: Docker, private readonly cfg: DeployCfg, private readonly project: string) {}
+  constructor(
+    private readonly docker: Docker,
+    private readonly cfg: DeployCfg,
+    private readonly project: string,
+    private readonly notes: NotesService,
+  ) {}
 
   private tagsFor(images: any[], repo: string): Set<string> {
     const set = new Set<string>();
@@ -29,7 +35,7 @@ export class TagService {
     return map;
   }
 
-  private buildList(images: any[], repo: string, current: string | null): TagInfo[] {
+  private buildList(images: any[], repo: string, current: string | null, noteMap: Map<string, string>): TagInfo[] {
     const tags = this.tagsFor(images, repo);
     const meta = this.metaFor(images, repo);
     return [...tags].sort().map((name) => {
@@ -41,6 +47,7 @@ export class TagService {
         sizeMb: Math.round((m?.size ?? 0) / 1048576),
         isRunning,
         deployable: !isRunning,
+        note: noteMap.get(name) ?? null,
       };
     });
   }
@@ -49,8 +56,9 @@ export class TagService {
     const images = await this.docker.listImages();
     const currentGame = await this.currentTagFor(this.cfg.gameRepo);
     const currentDb = await this.currentTagFor(this.cfg.dbRepo);
-    const game = this.buildList(images, this.cfg.gameRepo, currentGame);
-    const db = this.buildList(images, this.cfg.dbRepo, currentDb);
+    const [gameNotes, dbNotes] = await Promise.all([this.notes.getMap('game'), this.notes.getMap('db')]);
+    const game = this.buildList(images, this.cfg.gameRepo, currentGame, gameNotes);
+    const db = this.buildList(images, this.cfg.dbRepo, currentDb, dbNotes);
     return { game, db, currentGame, currentDb };
   }
 

@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
 import { PanelUser } from './entities/panel-user.entity';
 import { Deployment } from '../deploy/deployment.entity';
+import { ReleaseNote } from '../deploy/release-note.entity';
 import { AuditLog } from '../audit/audit-log.entity';
 dotenv.config({ path: '../../.env' });
 
@@ -14,7 +15,7 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
-  entities: [PanelUser, Deployment, AuditLog],
+  entities: [PanelUser, Deployment, AuditLog, ReleaseNote],
   // NOTE: only the src/*.ts glob — the dist/*.js glob was removed to avoid duplicate-migration
   // errors under ts-node. If a compiled (dist/) prod migration run is ever needed, add it back behind an env check.
   migrations: ['src/database/migrations/*.ts'],

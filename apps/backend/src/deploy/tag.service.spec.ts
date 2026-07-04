@@ -21,9 +21,15 @@ function fakeDocker() {
 }
 const cfg = { gameRepo: 'ghcr.io/changeme/metin2-game', dbRepo: 'ghcr.io/changeme/metin2-db' } as any;
 
+function fakeNotes(game: Map<string, string> = new Map(), db: Map<string, string> = new Map()) {
+  return {
+    getMap: jest.fn((kind: string) => Promise.resolve(kind === 'db' ? db : game)),
+  } as any;
+}
+
 describe('TagService.listTags', () => {
   it('game ve db için ayrı listeler + currentGame/currentDb döndürür', async () => {
-    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles');
+    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles', fakeNotes());
     const res = await svc.listTags();
     expect(Array.isArray(res.game)).toBe(true);
     expect(Array.isArray(res.db)).toBe(true);
@@ -34,7 +40,7 @@ describe('TagService.listTags', () => {
   });
 
   it('her game tag için createdAt (ISO) + sizeMb + isRunning + deployable döndürür', async () => {
-    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles');
+    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles', fakeNotes());
     const res = await svc.listTags();
     const latest = res.game.find((t) => t.name === 'latest')!;
     const v1 = res.game.find((t) => t.name === 'v1')!;
@@ -48,7 +54,7 @@ describe('TagService.listTags', () => {
   });
 
   it('db listesi kendi tag\'lerini ve isRunning/deployable durumunu bağımsız taşır', async () => {
-    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles');
+    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles', fakeNotes());
     const res = await svc.listTags();
     const dbLatest = res.db.find((t) => t.name === 'latest')!;
     const dbV1 = res.db.find((t) => t.name === 'v1')!;
@@ -74,7 +80,7 @@ describe('TagService.listTags', () => {
         }),
       })),
     } as any;
-    const svc = new TagService(docker, cfg, 'metin2-svfiles');
+    const svc = new TagService(docker, cfg, 'metin2-svfiles', fakeNotes());
     const res = await svc.listTags();
     expect(res.currentGame).toBe('new');
   });
@@ -82,11 +88,21 @@ describe('TagService.listTags', () => {
   it('çalışan container yoksa current* null olur, tüm tag\'ler deployable', async () => {
     const docker = fakeDocker();
     docker.listContainers = jest.fn().mockResolvedValue([]);
-    const svc = new TagService(docker, cfg, 'metin2-svfiles');
+    const svc = new TagService(docker, cfg, 'metin2-svfiles', fakeNotes());
     const res = await svc.listTags();
     expect(res.currentGame).toBeNull();
     expect(res.currentDb).toBeNull();
     expect(res.game.every((t) => t.deployable)).toBe(true);
     expect(res.db.every((t) => t.deployable)).toBe(true);
+  });
+
+  it('bir tag için not varsa TagInfo.note doldurulur, yoksa null olur', async () => {
+    const notes = fakeNotes(new Map([['v1', 'game notu']]), new Map([['latest', 'db notu']]));
+    const svc = new TagService(fakeDocker(), cfg, 'metin2-svfiles', notes);
+    const res = await svc.listTags();
+    expect(res.game.find((t) => t.name === 'v1')!.note).toBe('game notu');
+    expect(res.game.find((t) => t.name === 'latest')!.note).toBeNull();
+    expect(res.db.find((t) => t.name === 'latest')!.note).toBe('db notu');
+    expect(res.db.find((t) => t.name === 'v1')!.note).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ export type AuditAction =
   | 'service_restart' | 'service_stop'
   | 'deploy' | 'rollback'
   | 'user_approve' | 'user_role_change' | 'user_disable' | 'user_enable' | 'user_delete'
-  | 'image_delete';
+  | 'image_delete' | 'note_update';
 export type AuditResult = 'success' | 'failure';
 export interface AuditEntry {
   action: AuditAction;

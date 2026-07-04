@@ -79,7 +79,13 @@
     "deleteConfirm": "{{tag}} ({{kind}}) silinsin mi?",
     "deployStarted": "{{tag}} deploy başlatıldı",
     "deleted": "Image silindi",
-    "statusLabel": "durum: {{status}}"
+    "statusLabel": "durum: {{status}}",
+    "note": "Not",
+    "noteTitle": "Sürüm notu",
+    "addNote": "Not ekle",
+    "editNote": "Notu düzenle",
+    "notePlaceholder": "Bu sürümde ne değişti?",
+    "noteSaved": "Not kaydedildi"
   },
   "deployments": {
     "title": "Deployment Geçmişi",
@@ -89,6 +95,7 @@
     "status": "Durum",
     "user": "Kullanıcı",
     "action": "İşlem",
+    "note": "Not",
     "rollback": "Geri Al",
     "noRecords": "Kayıt yok",
     "confirmTitle": "Rollback onayı",
@@ -178,6 +185,7 @@
     "cannot_modify_last_admin": "Son aktif admin değiştirilemez",
     "cannot_delete_last_admin": "Son aktif admin silinemez",
     "cannot_modify_self": "Kendini değiştiremezsin",
-    "cannot_delete_self": "Kendini silemezsin"
+    "cannot_delete_self": "Kendini silemezsin",
+    "note_too_long": "Not 2000 karakteri aşamaz"
   }
 }
