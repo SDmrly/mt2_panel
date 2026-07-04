@@ -1,8 +1,10 @@
 // apps/frontend/src/pages/ServiceDetail.tsx
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
 import { apiClient } from '../lib/api';
+import { apiErrorText } from '../lib/apiError';
 import { useServices } from '../hooks/useServices';
 import { useServiceStats } from '../hooks/useServiceStats';
 import { useAuthStore } from '../store/auth';
@@ -25,12 +27,9 @@ import { toast } from 'sonner';
 const STATUS_DOT: Record<string, string> = {
   running: 'var(--accent)', restarting: 'var(--warning)', exited: 'var(--faint)', stopped: 'var(--faint)',
 };
-const ACTION_LABEL: Record<'restart' | 'stop', string> = {
-  restart: 'yeniden başlatıldı',
-  stop: 'durduruldu',
-};
 
 export default function ServiceDetail() {
+  const { t } = useTranslation();
   const { name = '' } = useParams();
   const { data: services } = useServices();
   const { data: stats } = useServiceStats(name);
@@ -74,9 +73,9 @@ export default function ServiceDetail() {
     setBusy(true);
     try {
       await apiClient.post(`/services/${name}/${a}`);
-      toast.success(`${name} ${ACTION_LABEL[a]}`);
+      toast.success(t(a === 'restart' ? 'services.restarted' : 'services.stopped', { name }));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'İşlem başarısız');
+      toast.error(apiErrorText(err, t));
     } finally {
       setBusy(false);
     }
@@ -96,12 +95,12 @@ export default function ServiceDetail() {
         <div className="flex items-center gap-2">
           {canWrite && (
             <>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => setModal('restart')}>Restart</Button>
-              <Button size="sm" variant="destructive" disabled={busy} onClick={() => setModal('stop')}>Stop</Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => setModal('restart')}>{t('services.restart')}</Button>
+              <Button size="sm" variant="destructive" disabled={busy} onClick={() => setModal('stop')}>{t('services.stop')}</Button>
             </>
           )}
           <Button size="sm" variant="outline" onClick={() => setLogsOpen(true)}>
-            <Terminal size={14} /> Canlı Log
+            <Terminal size={14} /> {t('services.liveLog')}
           </Button>
         </div>
       </div>
@@ -111,7 +110,7 @@ export default function ServiceDetail() {
           <Badge variant="outline">
             {card.role}{card.role === 'channel' && card.channel !== undefined ? ` · ch${card.channel}` : ''}
           </Badge>
-          {(() => { const h = healthDisplay(card.health, card.status); return <Badge variant={h.variant}>{h.label}</Badge>; })()}
+          {(() => { const h = healthDisplay(card.health, card.status); return <Badge variant={h.variant}>{t(`services.health.${h.label}`, { defaultValue: h.label })}</Badge>; })()}
           <span className="text-xs text-[var(--faint)]">{card.image.name}:{card.image.tag} · {card.uptime}</span>
         </div>
       )}
@@ -119,12 +118,12 @@ export default function ServiceDetail() {
       {/* Performans (CPU/RAM gauge — Dashboard ile aynı) + Ağ trafiği grafiği */}
       <div className="grid md:grid-cols-[1.4fr_1fr] gap-4">
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
-          <div className="text-[var(--heading)] font-bold text-sm mb-2">Performans</div>
+          <div className="text-[var(--heading)] font-bold text-sm mb-2">{t('services.performance')}</div>
           <div className="flex gap-3 justify-around">
-            <Gauge value={stats?.cpuPercent ?? 0} label="CPU" color="var(--accent)" />
+            <Gauge value={stats?.cpuPercent ?? 0} label={t('dashboard.cpu')} color="var(--accent)" />
             <Gauge
               value={memPct}
-              label="RAM"
+              label={t('dashboard.ram')}
               color="var(--primary)"
               sub={stats ? `${stats.memUsedMb} / ${stats.memLimitMb} MB` : undefined}
             />
@@ -134,20 +133,20 @@ export default function ServiceDetail() {
       </div>
 
       <div className="text-sm text-[var(--muted)]">
-        Portlar: <span className="font-mono text-[var(--foreground)]">{card?.ports.join(', ') || '—'}</span>
+        {t('services.ports')}: <span className="font-mono text-[var(--foreground)]">{card?.ports.join(', ') || '—'}</span>
       </div>
 
       <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{modal === 'restart' ? 'Servisi yeniden başlat' : 'Servisi durdur'}</DialogTitle>
+            <DialogTitle>{modal === 'restart' ? t('services.restartTitle') : t('services.stopTitle')}</DialogTitle>
             <DialogDescription>
-              <span className="font-mono">{name}</span> {modal} edilsin mi?
+              {modal === 'restart' ? t('services.restartConfirm', { name }) : t('services.stopConfirm', { name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={() => setModal(null)}>İptal</Button>
-            <Button variant="destructive" disabled={busy} onClick={() => modal && act(modal)}>Onayla</Button>
+            <Button variant="outline" disabled={busy} onClick={() => setModal(null)}>{t('common.cancel')}</Button>
+            <Button variant="destructive" disabled={busy} onClick={() => modal && act(modal)}>{t('common.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

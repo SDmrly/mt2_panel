@@ -1,5 +1,6 @@
 // apps/frontend/src/components/ServiceCard.tsx
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ServiceCard as TCard } from '../types/service';
 import { Badge } from './ui/badge';
 import { healthDisplay } from '../lib/serviceHealth';
@@ -12,6 +13,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export function ServiceCard({ service: s }: { service: TCard }) {
+  const { t } = useTranslation();
   const dotColor = STATUS_DOT[s.status] ?? 'var(--faint)';
   const health = healthDisplay(s.health, s.status);
   const memPercent = s.stats ? (s.stats.memUsedMb / s.stats.memLimitMb) * 100 : undefined;
@@ -19,7 +21,7 @@ export function ServiceCard({ service: s }: { service: TCard }) {
   return (
     <Link
       to={`/services/${s.name}`}
-      className="block bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 hover:border-[#243049] transition-colors"
+      className="block bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors"
     >
       <div className="flex items-center justify-between mb-2 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -27,7 +29,7 @@ export function ServiceCard({ service: s }: { service: TCard }) {
           <span aria-hidden="true">{ROLE_ICON[s.role]}</span>
           <span className="font-mono text-sm font-semibold text-[var(--heading)] truncate">{s.name}</span>
         </div>
-        <Badge variant={health.variant}>{health.label}</Badge>
+        <Badge variant={health.variant}>{t(`services.health.${health.label}`, { defaultValue: health.label })}</Badge>
       </div>
 
       <div className="mb-2">
@@ -43,13 +45,13 @@ export function ServiceCard({ service: s }: { service: TCard }) {
       {s.stats && (
         <div className="space-y-1">
           <div className="flex justify-between text-[9px] text-[var(--muted)]">
-            CPU<span className="text-[var(--foreground)]">{s.stats.cpuPercent}%</span>
+            {t('dashboard.cpu')}<span className="text-[var(--foreground)]">{s.stats.cpuPercent}%</span>
           </div>
           <div className="h-1 bg-[var(--border)] rounded">
             <div className="h-1 rounded" style={{ width: `${Math.min(100, s.stats.cpuPercent)}%`, background: 'var(--accent)' }} />
           </div>
           <div className="flex justify-between text-[9px] text-[var(--muted)]">
-            RAM<span className="text-[var(--foreground)]">{Math.round(memPercent ?? 0)}%</span>
+            {t('dashboard.ram')}<span className="text-[var(--foreground)]">{Math.round(memPercent ?? 0)}%</span>
           </div>
           <div className="h-1 bg-[var(--border)] rounded">
             <div className="h-1 rounded" style={{ width: `${Math.min(100, memPercent ?? 0)}%`, background: 'var(--primary)' }} />
@@ -59,7 +61,7 @@ export function ServiceCard({ service: s }: { service: TCard }) {
 
       {s.role === 'quest-compiler' && s.exitCode !== undefined && (
         <div className={s.exitCode === 0 ? 'text-[var(--accent)] text-xs mt-2' : 'text-[var(--destructive)] text-xs font-bold mt-2'}>
-          exit {s.exitCode}
+          {t('services.exit')} {s.exitCode}
         </div>
       )}
     </Link>

@@ -1,6 +1,8 @@
 // apps/frontend/src/pages/Deploy.tsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '../lib/api';
+import { apiErrorText } from '../lib/apiError';
 import { useDeployTags } from '../hooks/useDeployTags';
 import { useDeployStream } from '../hooks/useDeployStream';
 import { timeAgo } from '../lib/timeAgo';
@@ -34,47 +36,48 @@ function ImageTable({
   onDeploy: (kind: DeployKind, tag: TagInfo) => void;
   onDelete: (kind: DeployKind, tag: TagInfo) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
         <span className="text-[var(--heading)] font-bold text-sm">{title}</span>
         <span className="text-[10px] px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] font-mono">
-          çalışan: {current ?? '—'}
+          {t('deploy.current', { value: current ?? '—' })}
         </span>
       </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-[var(--muted)] border-b border-[var(--border)] text-xs">
-            <th className="py-1.5 font-medium">Tag</th>
-            <th className="font-medium">Oluşturulma</th>
-            <th className="font-medium">Boyut</th>
-            <th className="font-medium text-right">İşlem</th>
+            <th className="py-1.5 font-medium">{t('deploy.tag')}</th>
+            <th className="font-medium">{t('deploy.created')}</th>
+            <th className="font-medium">{t('deploy.size')}</th>
+            <th className="font-medium text-right">{t('deploy.action')}</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((t) => (
-            <tr key={t.name} className="border-b border-[var(--border)] last:border-0">
+          {items.map((tag) => (
+            <tr key={tag.name} className="border-b border-[var(--border)] last:border-0">
               <td className="py-2">
                 <div className="flex items-center gap-1.5">
                   <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: t.isRunning ? 'var(--accent)' : 'var(--faint)' }}
+                    style={{ background: tag.isRunning ? 'var(--accent)' : 'var(--faint)' }}
                   />
-                  <span className="font-mono text-[var(--foreground)]">{t.name}</span>
-                  {t.isRunning && <Badge variant="success">çalışıyor</Badge>}
+                  <span className="font-mono text-[var(--foreground)]">{tag.name}</span>
+                  {tag.isRunning && <Badge variant="success">{t('deploy.running')}</Badge>}
                 </div>
               </td>
               <td className="text-[var(--muted)] text-xs">
-                <div>{new Date(t.createdAt).toLocaleString()}</div>
-                <div className="text-[var(--faint)]">{timeAgo(t.createdAt)}</div>
+                <div>{new Date(tag.createdAt).toLocaleString()}</div>
+                <div className="text-[var(--faint)]">{timeAgo(tag.createdAt, t)}</div>
               </td>
-              <td className="text-[var(--muted)] text-xs">{t.sizeMb} MB</td>
+              <td className="text-[var(--muted)] text-xs">{tag.sizeMb} MB</td>
               <td className="text-right space-x-2">
-                <Button size="sm" variant="destructive" disabled={t.isRunning} onClick={() => onDelete(kind, t)}>
-                  Sil
+                <Button size="sm" variant="destructive" disabled={tag.isRunning} onClick={() => onDelete(kind, tag)}>
+                  {t('deploy.delete')}
                 </Button>
-                <Button size="sm" variant="default" disabled={t.isRunning || !t.deployable} onClick={() => onDeploy(kind, t)}>
-                  Deploy
+                <Button size="sm" variant="default" disabled={tag.isRunning || !tag.deployable} onClick={() => onDeploy(kind, tag)}>
+                  {t('deploy.deploy')}
                 </Button>
               </td>
             </tr>
@@ -82,7 +85,7 @@ function ImageTable({
           {items.length === 0 && (
             <tr>
               <td colSpan={4} className="py-4 text-center text-[var(--faint)] text-xs">
-                Image yok
+                {t('deploy.noImages')}
               </td>
             </tr>
           )}
@@ -93,6 +96,7 @@ function ImageTable({
 }
 
 export default function Deploy() {
+  const { t } = useTranslation();
   const { data, refetch } = useDeployTags();
   const [jobId, setJobId] = useState<string | null>(null);
   const [deployTarget, setDeployTarget] = useState<ConfirmTarget | null>(null);
@@ -108,9 +112,9 @@ export default function Deploy() {
     try {
       const { data: res } = await apiClient.post<{ jobId: string }>('/deploy', { kind, tag: tag.name });
       setJobId(res.jobId);
-      toast.success(`${tag.name} deploy başlatıldı`);
+      toast.success(t('deploy.deployStarted', { tag: tag.name }));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Deploy başlatılamadı');
+      toast.error(apiErrorText(err, t));
     }
   };
 
@@ -120,20 +124,20 @@ export default function Deploy() {
     setDeleteTarget(null);
     try {
       await apiClient.delete(`/deploy/images/${kind}/${tag.name}`);
-      toast.success('Image silindi');
+      toast.success(t('deploy.deleted'));
       refetch();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Silme başarısız');
+      toast.error(apiErrorText(err, t));
     }
   };
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold text-[var(--heading)]">Deploy</h1>
+      <h1 className="text-xl font-bold text-[var(--heading)]">{t('deploy.title')}</h1>
 
       <ImageTable
         kind="game"
-        title="Game Images"
+        title={t('deploy.gameImages')}
         items={data?.game ?? []}
         current={data?.currentGame ?? null}
         onDeploy={(kind, tag) => setDeployTarget({ kind, tag })}
@@ -141,7 +145,7 @@ export default function Deploy() {
       />
       <ImageTable
         kind="db"
-        title="DB Images"
+        title={t('deploy.dbImages')}
         items={data?.db ?? []}
         current={data?.currentDb ?? null}
         onDeploy={(kind, tag) => setDeployTarget({ kind, tag })}
@@ -151,20 +155,19 @@ export default function Deploy() {
       <Dialog open={!!deployTarget} onOpenChange={(open) => !open && setDeployTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deploy onayı</DialogTitle>
+            <DialogTitle>{t('deploy.confirmTitle')}</DialogTitle>
             <DialogDescription>
-              {deployTarget && (
-                <>
-                  <span className="font-mono">{currentFor(deployTarget.kind) ?? '—'}</span> →{' '}
-                  <span className="font-mono">{deployTarget.tag.name}</span> ({deployTarget.kind}) deploy edilsin mi?
-                </>
-              )}
+              {deployTarget && t('deploy.deployConfirm', {
+                current: currentFor(deployTarget.kind) ?? '—',
+                tag: deployTarget.tag.name,
+                kind: deployTarget.kind,
+              })}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-xs text-[var(--destructive)]">İlgili servisler yeniden başlatılacak (recreate).</p>
+          <p className="text-xs text-[var(--destructive)]">{t('deploy.recreateWarning')}</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeployTarget(null)}>İptal</Button>
-            <Button variant="default" onClick={confirmDeploy}>Onayla</Button>
+            <Button variant="outline" onClick={() => setDeployTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="default" onClick={confirmDeploy}>{t('common.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -172,25 +175,21 @@ export default function Deploy() {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Image sil</DialogTitle>
+            <DialogTitle>{t('deploy.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              {deleteTarget && (
-                <>
-                  <span className="font-mono">{deleteTarget.tag.name}</span> ({deleteTarget.kind}) silinsin mi?
-                </>
-              )}
+              {deleteTarget && t('deploy.deleteConfirm', { tag: deleteTarget.tag.name, kind: deleteTarget.kind })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>İptal</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Sil</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="destructive" onClick={confirmDelete}>{t('deploy.delete')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {jobId && (
         <div className="border border-[var(--border)] rounded-xl bg-black text-green-300 font-mono text-xs p-3 h-80 overflow-auto">
-          <div>durum: {status}</div>
+          <div>{t('deploy.statusLabel', { status })}</div>
           {events.map((e, i) => (
             <div key={i} className={e.type === 'failed' ? 'text-red-400' : e.type === 'rollback' ? 'text-yellow-300' : ''}>
               {e.type === 'log' ? e.line : `[${e.type}${e.step ? ' ' + e.step : ''}${e.status ? ':' + e.status : ''}]${e.error ? ' ' + e.error : ''}`}

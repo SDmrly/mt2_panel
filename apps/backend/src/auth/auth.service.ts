@@ -1,10 +1,11 @@
 // apps/backend/src/auth/auth.service.ts
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { PanelUser } from '../database/entities/panel-user.entity';
+import { AppException } from '../common/app-exception';
 import { HashService } from './hash.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 
@@ -22,7 +23,7 @@ export class AuthService {
 
   async register(dto: { username: string; email: string; password: string }): Promise<void> {
     const existing = await this.users.findOne({ where: [{ username: dto.username }, { email: dto.email }] });
-    if (existing) throw new ConflictException('Kullanıcı adı veya e-posta zaten kayıtlı');
+    if (existing) throw new AppException('username_or_email_taken', HttpStatus.CONFLICT, 'Kullanıcı adı veya e-posta zaten kayıtlı');
     await this.users.save(this.users.create({
       username: dto.username, email: dto.email,
       passwordHash: await this.hash.hash(dto.password),
@@ -33,9 +34,9 @@ export class AuthService {
   async login(dto: { username: string; password: string }) {
     const u = await this.users.findOne({ where: { username: dto.username } });
     if (!u || !(await this.hash.verify(dto.password, u.passwordHash))) {
-      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
+      throw new AppException('invalid_credentials', HttpStatus.UNAUTHORIZED, 'Kullanıcı adı veya şifre hatalı');
     }
-    if (u.status === 'disabled') throw new UnauthorizedException('Hesap devre dışı');
+    if (u.status === 'disabled') throw new AppException('account_disabled', HttpStatus.UNAUTHORIZED, 'Hesap devre dışı');
     await this.users.update(u.id, { lastLogin: new Date() });
     return this.issueTokens(u);
   }
@@ -55,12 +56,12 @@ export class AuthService {
   async refresh(refreshToken: string) {
     let payload: any;
     try { payload = await this.jwt.verifyAsync(refreshToken, { secret: this.cfg.secret }); }
-    catch { throw new UnauthorizedException('Geçersiz refresh token'); }
-    if (!payload.jti) throw new UnauthorizedException('Refresh token geçersiz');
+    catch { throw new AppException('invalid_refresh', HttpStatus.UNAUTHORIZED, 'Geçersiz refresh token'); }
+    if (!payload.jti) throw new AppException('invalid_refresh', HttpStatus.UNAUTHORIZED, 'Refresh token geçersiz');
     if (payload.typ !== 'refresh' || !(await this.bl.getRefresh(payload.jti)))
-      throw new UnauthorizedException('Refresh token geçersiz');
+      throw new AppException('invalid_refresh', HttpStatus.UNAUTHORIZED, 'Refresh token geçersiz');
     const u = await this.users.findOne({ where: { id: payload.sub } });
-    if (!u || u.status === 'disabled') throw new UnauthorizedException('Erişim yok');
+    if (!u || u.status === 'disabled') throw new AppException('no_access', HttpStatus.UNAUTHORIZED, 'Erişim yok');
     const accessToken = await this.jwt.signAsync(
       { sub: u.id, username: u.username, role: u.role, status: u.status, jti: randomUUID() },
       { secret: this.cfg.secret, expiresIn: this.cfg.accessTtl },

@@ -92,14 +92,14 @@ describe('DeployService', () => {
         }),
       } as any;
       const svc = new DeployService(repo(), containers(), { recreate: jest.fn() } as any, ts, cfg, dockerStub(), auditStub());
-      await expect(svc.startDeploy('game', 'v1', 'u1')).rejects.toThrow();
+      await expect(svc.startDeploy('game', 'v1', 'u1')).rejects.toMatchObject({ response: { code: 'invalid_tag' }, status: 400 });
     });
 
-    it('aktif deploy varken ikinci istek ConflictException', async () => {
+    it('aktif deploy varken ikinci istek → deploy_in_progress (409)', async () => {
       const recreator = { recreate: jest.fn(() => new Promise<void>(() => {})) }; // asla bitmez
       const svc = new DeployService(repo(), containers(), recreator as any, tagService(), cfg, dockerStub(), auditStub());
       await svc.startDeploy('game', 'v1', 'u1');
-      await expect(svc.startDeploy('db', 'v1', 'u1')).rejects.toThrow();
+      await expect(svc.startDeploy('db', 'v1', 'u1')).rejects.toMatchObject({ response: { code: 'deploy_in_progress' }, status: 409 });
     });
   });
 
@@ -140,10 +140,10 @@ describe('DeployService', () => {
       expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u2' }));
     });
 
-    it('deleteImage in-use (409) → ConflictException', async () => {
+    it('deleteImage in-use (409) → image_in_use', async () => {
       const err: any = new Error('c'); err.statusCode = 409;
       docker.getImage = jest.fn().mockReturnValue({ remove: jest.fn().mockRejectedValue(err) });
-      await expect(service.deleteImage('game', 'latest', { id: 'u1', username: 'admin' } as any)).rejects.toMatchObject({ status: 409 });
+      await expect(service.deleteImage('game', 'latest', { id: 'u1', username: 'admin' } as any)).rejects.toMatchObject({ status: 409, response: { code: 'image_in_use' } });
       expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'image_delete', result: 'failure', target: 'game:latest' }));
     });
 

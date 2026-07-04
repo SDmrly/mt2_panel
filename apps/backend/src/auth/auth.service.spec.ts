@@ -1,7 +1,6 @@
 // apps/backend/src/auth/auth.service.spec.ts
 import { AuthService } from './auth.service';
 import { HashService } from './hash.service';
-import { UnauthorizedException, ConflictException } from '@nestjs/common';
 
 const user = { id: 'u1', username: 'admin', role: 'admin', status: 'active', passwordHash: '' };
 const repo = () => ({ findOne: jest.fn(), update: jest.fn(), save: jest.fn(), create: jest.fn((v: any) => v) }) as any;
@@ -17,16 +16,16 @@ describe('AuthService.login', () => {
     expect(res.accessToken).toBe('tok');
     expect(res.user.username).toBe('admin');
   });
-  it('yanlış şifrede UnauthorizedException', async () => {
+  it('yanlış şifrede invalid_credentials', async () => {
     const hash = new HashService(); const r = repo();
     r.findOne.mockResolvedValue({ ...user, passwordHash: await hash.hash('other') });
     const svc = new AuthService(r, hash, jwt(), bl(), { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
-    await expect(svc.login({ username: 'admin', password: 'pw' })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.login({ username: 'admin', password: 'pw' })).rejects.toMatchObject({ response: { code: 'invalid_credentials' }, status: 401 });
   });
-  it('kullanıcı yoksa UnauthorizedException', async () => {
+  it('kullanıcı yoksa invalid_credentials', async () => {
     const r = repo(); r.findOne.mockResolvedValue(null);
     const svc = new AuthService(r, new HashService(), jwt(), bl(), { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
-    await expect(svc.login({ username: 'x', password: 'y' })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.login({ username: 'x', password: 'y' })).rejects.toMatchObject({ response: { code: 'invalid_credentials' }, status: 401 });
   });
 });
 
@@ -43,26 +42,26 @@ describe('AuthService.refresh', () => {
     expect(j.signAsync).toHaveBeenCalled();
   });
 
-  it('typ "refresh" değilse UnauthorizedException', async () => {
+  it('typ "refresh" değilse invalid_refresh', async () => {
     const j = jwt(); j.verifyAsync.mockResolvedValue({ sub: 'u1', username: 'admin', role: 'admin', jti: 'r1' });
     const b = bl(); b.getRefresh.mockResolvedValue('u1');
     const svc = new AuthService(repo(), new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
-    await expect(svc.refresh('sometoken')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.refresh('sometoken')).rejects.toMatchObject({ response: { code: 'invalid_refresh' }, status: 401 });
   });
 
-  it('bl.getRefresh null döndürürse UnauthorizedException', async () => {
+  it('bl.getRefresh null döndürürse invalid_refresh', async () => {
     const j = jwt(); j.verifyAsync.mockResolvedValue({ ...validPayload });
     const b = bl(); b.getRefresh.mockResolvedValue(null);
     const svc = new AuthService(repo(), new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
-    await expect(svc.refresh('sometoken')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.refresh('sometoken')).rejects.toMatchObject({ response: { code: 'invalid_refresh' }, status: 401 });
   });
 
-  it('kullanıcı disabled ise refresh → UnauthorizedException', async () => {
+  it('kullanıcı disabled ise refresh → no_access', async () => {
     const j = jwt(); j.verifyAsync.mockResolvedValue({ ...validPayload });
     const b = bl(); b.getRefresh.mockResolvedValue('u1');
     const r = repo(); r.findOne.mockResolvedValue({ id: 'u1', username: 'admin', role: 'admin', status: 'disabled' });
     const svc = new AuthService(r, new HashService(), j, b, { secret: 's', accessTtl: 900, refreshTtl: 604800 } as any);
-    await expect(svc.refresh('sometoken')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.refresh('sometoken')).rejects.toMatchObject({ response: { code: 'no_access' }, status: 401 });
   });
 });
 
@@ -101,15 +100,15 @@ describe('AuthService.register', () => {
     await svc.register({ username: 'yeni', email: 'y@x.com', password: 'parola12' });
     expect(r.save).toHaveBeenCalledWith(expect.objectContaining({ username: 'yeni', email: 'y@x.com', status: 'pending', role: 'viewer' }));
   });
-  it('register: kullanıcı/email varsa ConflictException', async () => {
+  it('register: kullanıcı/email varsa username_or_email_taken', async () => {
     const r = repo(); r.findOne.mockResolvedValue({ id: 'u1' });
     const svc = new AuthService(r, new HashService(), jwt(), bl(), { secret:'s', accessTtl:900, refreshTtl:604800 } as any);
-    await expect(svc.register({ username: 'a', email: 'a@x.com', password: 'parola12' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(svc.register({ username: 'a', email: 'a@x.com', password: 'parola12' })).rejects.toMatchObject({ response: { code: 'username_or_email_taken' }, status: 409 });
   });
-  it('login: disabled kullanıcı UnauthorizedException', async () => {
+  it('login: disabled kullanıcı account_disabled', async () => {
     const r = repo(); const hash = new HashService();
     r.findOne.mockResolvedValue({ id:'u1', username:'a', role:'viewer', status:'disabled', passwordHash: await hash.hash('parola12') });
     const svc = new AuthService(r, hash, jwt(), bl(), { secret:'s', accessTtl:900, refreshTtl:604800 } as any);
-    await expect(svc.login({ username:'a', password:'parola12' })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.login({ username:'a', password:'parola12' })).rejects.toMatchObject({ response: { code: 'account_disabled' }, status: 401 });
   });
 });

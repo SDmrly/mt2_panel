@@ -5,6 +5,10 @@ import { queryClient } from './lib/queryClient';
 import App from './App';
 import { Toaster } from './components/ui/sonner';
 import './index.css';
+import './i18n';
+import { initTheme } from './lib/theme';
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

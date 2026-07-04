@@ -1,9 +1,10 @@
 // apps/backend/src/auth/auth.controller.ts
-import { Body, Controller, Get, HttpCode, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AppException } from '../common/app-exception';
 import { AuditService } from '../audit/audit.service';
 
 @Controller('auth')
@@ -34,7 +35,7 @@ export class AuthController {
       await this.audit.record({ action: 'login', result: 'success', userId: res.user.id, username: res.user.username, ip: req.ip });
       return res;
     } catch (e) {
-      if (e instanceof UnauthorizedException) {
+      if (e instanceof AppException) {
         await this.audit.record({ action: 'login_failed', result: 'failure', username: dto.username, ip: req.ip, detail: { reason: 'bad credentials' } });
       }
       throw e;

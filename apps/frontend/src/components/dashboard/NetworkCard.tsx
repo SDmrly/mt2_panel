@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts';
 export function NetworkCard({ rx, tx, history }: { rx: number; tx: number; history: { t: number; rx: number; tx: number }[] }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-1">
-        <span className="text-[var(--heading)] font-bold text-sm">Ağ Trafiği</span>
+        <span className="text-[var(--heading)] font-bold text-sm">{t('dashboard.network')}</span>
         <span className="text-[10px] text-[var(--muted)]">↓ {rx} MB/s &nbsp; <span className="text-[var(--primary)]">↑ {tx} MB/s</span></span>
       </div>
       <div className="h-24">

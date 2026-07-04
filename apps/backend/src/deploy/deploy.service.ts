@@ -1,5 +1,5 @@
 // apps/backend/src/deploy/deploy.service.ts
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Observable, Subject } from 'rxjs';
 import Docker from 'dockerode';
@@ -7,6 +7,7 @@ import { Deployment } from './deployment.entity';
 import { DeployEvent, DeployKind } from './types';
 import { RECREATOR, Recreator } from './recreator';
 import { ContainersService } from '../containers/containers.service';
+import { AppException } from '../common/app-exception';
 import { TagService } from './tag.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -33,11 +34,11 @@ export class DeployService {
   }
 
   async startDeploy(kind: DeployKind, tag: string, userId: string): Promise<{ jobId: string }> {
-    if (this.active) throw new ConflictException('Devam eden bir deploy var');
+    if (this.active) throw new AppException('deploy_in_progress', HttpStatus.CONFLICT, 'Devam eden bir deploy var');
     const { game, db, currentGame, currentDb } = await this.tagService.listTags();
     const list = kind === 'game' ? game : db;
     const current = kind === 'game' ? currentGame : currentDb;
-    if (!list.find((t) => t.name === tag && t.deployable)) throw new BadRequestException(`Geçersiz/eksik tag: ${tag}`);
+    if (!list.find((t) => t.name === tag && t.deployable)) throw new AppException('invalid_tag', HttpStatus.BAD_REQUEST, `Geçersiz/eksik tag: ${tag}`);
     const dep = await this.repo.save({ kind, toTag: tag, fromTag: current, userId, status: 'running' } as any);
     const subject = new Subject<DeployEvent>();
     this.active = { jobId: dep.id, subject };
@@ -55,7 +56,7 @@ export class DeployService {
         await this.audit
           .record({ action: 'image_delete', result: 'failure', userId, username: actor.username, target: `${kind}:${tag}`, detail: { reason: 'in-use' } })
           .catch(() => {});
-        throw new ConflictException('Image kullanımda, silinemez');
+        throw new AppException('image_in_use', HttpStatus.CONFLICT, 'Image kullanımda, silinemez');
       }
       await this.audit
         .record({ action: 'image_delete', result: 'failure', userId, username: actor.username, target: `${kind}:${tag}`, detail: { reason: 'error' } })

@@ -1,5 +1,5 @@
 // apps/backend/src/deploy/deploy.controller.ts
-import { BadRequestException, Body, Controller, Delete, Get, MessageEvent, Param, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpStatus, MessageEvent, Param, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, map } from 'rxjs';
@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ActiveGuard } from '../auth/guards/active.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AppException } from '../common/app-exception';
 import { TagService } from './tag.service';
 import { DeployService } from './deploy.service';
 import { Deployment } from './deployment.entity';
@@ -14,7 +15,7 @@ import { DeployKind } from './types';
 import { AuditService } from '../audit/audit.service';
 
 function assertKind(kind: unknown): asserts kind is DeployKind {
-  if (kind !== 'game' && kind !== 'db') throw new BadRequestException('kind "game" veya "db" olmalı');
+  if (kind !== 'game' && kind !== 'db') throw new AppException('invalid_kind', HttpStatus.BAD_REQUEST, 'kind "game" veya "db" olmalı');
 }
 
 @UseGuards(JwtAuthGuard, ActiveGuard, RolesGuard)

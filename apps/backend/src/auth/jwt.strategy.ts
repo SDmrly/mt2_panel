@@ -1,10 +1,11 @@
 // apps/backend/src/auth/jwt.strategy.ts
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { PanelUser } from '../database/entities/panel-user.entity';
+import { AppException } from '../common/app-exception';
 import { TokenBlacklistService } from './token-blacklist.service';
 
 @Injectable()
@@ -23,10 +24,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     if (await this.bl.isBlacklisted(payload.jti)) {
-      throw new UnauthorizedException('Token iptal edilmiş');
+      throw new AppException('token_revoked', HttpStatus.UNAUTHORIZED, 'Token iptal edilmiş');
     }
     const u = await this.users.findOne({ where: { id: payload.sub } });
-    if (!u || u.status === 'disabled') throw new UnauthorizedException('Erişim yok');
+    if (!u || u.status === 'disabled') throw new AppException('no_access', HttpStatus.UNAUTHORIZED, 'Erişim yok');
     return { id: u.id, username: u.username, role: u.role, status: u.status, jti: payload.jti };
   }
 }

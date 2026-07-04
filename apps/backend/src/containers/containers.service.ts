@@ -1,6 +1,7 @@
 // apps/backend/src/containers/containers.service.ts
-import { NotFoundException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import Docker from 'dockerode';
+import { AppException } from '../common/app-exception';
 import { resolveRole } from './service-role';
 import { ServiceCard, ServiceHealth, ServiceStats, ServiceStatus } from './types';
 
@@ -42,7 +43,7 @@ export class ContainersService {
         ],
       },
     });
-    if (!list[0]) throw new NotFoundException(`Servis bulunamadı: ${name}`);
+    if (!list[0]) throw new AppException('service_not_found', HttpStatus.NOT_FOUND, `Servis bulunamadı: ${name}`);
     return this.docker.getContainer(list[0].Id);
   }
 
