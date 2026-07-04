@@ -2,8 +2,18 @@
 import { useState } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { AuditAction } from '../types/audit';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 
 const ACTIONS: (AuditAction | '')[] = ['', 'login', 'login_failed', 'logout', 'service_restart', 'service_stop', 'deploy', 'rollback'];
+
+const RESULT_VARIANT: Record<string, 'success' | 'destructive'> = {
+  success: 'success',
+  failure: 'destructive',
+};
+
+const fieldClass =
+  'bg-[var(--background)] border border-[var(--border)] rounded-[var(--radius)] px-2 py-1.5 text-xs text-[var(--foreground)] placeholder:text-[var(--faint)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]';
 
 export default function Audit() {
   const [action, setAction] = useState('');
@@ -23,38 +33,85 @@ export default function Audit() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">Audit Log</h1>
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        <select className="border p-2 rounded" value={action} onChange={(e) => { setAction(e.target.value); setOffset(0); }}>
+      <h1 className="text-xl font-bold text-[var(--heading)]">Audit Log</h1>
+
+      <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-center gap-2 text-sm flex-wrap">
+        <select
+          className={fieldClass}
+          value={action}
+          onChange={(e) => { setAction(e.target.value); setOffset(0); }}
+        >
           {ACTIONS.map((a) => <option key={a} value={a}>{a || 'tüm eylemler'}</option>)}
         </select>
-        <input className="border p-2 rounded" placeholder="kullanıcı adı" value={username} onChange={(e) => { setUsername(e.target.value); setOffset(0); }} />
-        <input type="date" className="border p-2 rounded" value={from} onChange={(e) => { setFrom(e.target.value); setOffset(0); }} title="Başlangıç tarihi" />
-        <input type="date" className="border p-2 rounded" value={to} onChange={(e) => { setTo(e.target.value); setOffset(0); }} title="Bitiş tarihi" />
+        <input
+          className={fieldClass}
+          placeholder="kullanıcı adı"
+          value={username}
+          onChange={(e) => { setUsername(e.target.value); setOffset(0); }}
+        />
+        <input
+          type="date"
+          className={fieldClass}
+          value={from}
+          onChange={(e) => { setFrom(e.target.value); setOffset(0); }}
+          title="Başlangıç tarihi"
+        />
+        <input
+          type="date"
+          className={fieldClass}
+          value={to}
+          onChange={(e) => { setTo(e.target.value); setOffset(0); }}
+          title="Bitiş tarihi"
+        />
       </div>
-      {isLoading || !data ? <p>Yükleniyor…</p> : (
+
+      {isLoading || !data ? (
+        <p className="p-6 text-[var(--muted)]">Yükleniyor…</p>
+      ) : (
         <>
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 border-b">
-              <th className="py-1">Tarih</th><th>Kullanıcı</th><th>Eylem</th><th>Hedef</th><th>Sonuç</th><th>IP</th>
-            </tr></thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.id} className="border-b">
-                  <td className="py-1">{new Date(r.createdAt).toLocaleString()}</td>
-                  <td>{r.username ?? '—'}</td>
-                  <td>{r.action}</td>
-                  <td className="font-mono">{r.target ?? '—'}</td>
-                  <td className={r.result === 'success' ? 'text-green-600' : 'text-red-600'}>{r.result}</td>
-                  <td className="text-gray-500">{r.ip ?? '—'}</td>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[var(--muted)] border-b border-[var(--border)] text-xs">
+                  <th className="py-1.5 font-medium">Tarih</th>
+                  <th className="font-medium">Kullanıcı</th>
+                  <th className="font-medium">Eylem</th>
+                  <th className="font-medium">Detay</th>
+                  <th className="font-medium">Sonuç</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex items-center gap-2 text-sm">
-            <button className="px-2 py-1 border rounded disabled:opacity-50" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>‹ Önceki</button>
-            <span>{data.total === 0 ? '0 / 0' : `${offset + 1}–${Math.min(offset + limit, data.total)} / ${data.total}`}</span>
-            <button className="px-2 py-1 border rounded disabled:opacity-50" disabled={offset + limit >= data.total} onClick={() => setOffset(offset + limit)}>Sonraki ›</button>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.id} className="border-b border-[var(--border)] last:border-0">
+                    <td className="py-2 text-[var(--muted)] text-xs">{new Date(r.createdAt).toLocaleString()}</td>
+                    <td className="text-[var(--foreground)]">{r.username ?? '—'}</td>
+                    <td><Badge variant="outline">{r.action}</Badge></td>
+                    <td className="text-xs">
+                      <div className="font-mono text-[var(--foreground)]">{r.target ?? '—'}</div>
+                      {r.ip && <div className="text-[var(--faint)]">{r.ip}</div>}
+                    </td>
+                    <td>
+                      <Badge variant={RESULT_VARIANT[r.result] ?? 'outline'}>{r.result}</Badge>
+                    </td>
+                  </tr>
+                ))}
+                {data.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-center text-[var(--faint)] text-xs">Kayıt yok</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+            <Button size="sm" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
+              ‹ Önceki
+            </Button>
+            <span className="text-xs">{data.total === 0 ? '0 / 0' : `${offset + 1}–${Math.min(offset + limit, data.total)} / ${data.total}`}</span>
+            <Button size="sm" variant="outline" disabled={offset + limit >= data.total} onClick={() => setOffset(offset + limit)}>
+              Sonraki ›
+            </Button>
           </div>
         </>
       )}

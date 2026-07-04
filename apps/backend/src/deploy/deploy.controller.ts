@@ -1,5 +1,5 @@
 // apps/backend/src/deploy/deploy.controller.ts
-import { Body, Controller, Get, MessageEvent, Param, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, MessageEvent, Param, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, map } from 'rxjs';
@@ -10,7 +10,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { TagService } from './tag.service';
 import { DeployService } from './deploy.service';
 import { Deployment } from './deployment.entity';
+import { DeployKind } from './types';
 import { AuditService } from '../audit/audit.service';
+
+function assertKind(kind: unknown): asserts kind is DeployKind {
+  if (kind !== 'game' && kind !== 'db') throw new BadRequestException('kind "game" veya "db" olmalı');
+}
 
 @UseGuards(JwtAuthGuard, ActiveGuard, RolesGuard)
 @Roles('admin')
@@ -24,13 +29,15 @@ export class DeployController {
   ) {}
 
   @Get('deploy/tags') listTags() { return this.tags.listTags(); }
-  @Post('deploy') async start(@Body('tag') tag: string, @Req() req: any) {
+  @Post('deploy') async start(@Body('kind') kind: unknown, @Body('tag') tag: string, @Req() req: any) {
+    assertKind(kind);
+    const target = `${kind}:${tag}`;
     try {
-      const res = await this.deploy.startDeploy(tag, req.user.id);
-      await this.audit.record({ action: 'deploy', result: 'success', userId: req.user.id, username: req.user.username, target: tag, ip: req.ip, detail: { jobId: res.jobId } });
+      const res = await this.deploy.startDeploy(kind, tag, req.user.id);
+      await this.audit.record({ action: 'deploy', result: 'success', userId: req.user.id, username: req.user.username, target, ip: req.ip, detail: { jobId: res.jobId } });
       return res;
     } catch (e: any) {
-      await this.audit.record({ action: 'deploy', result: 'failure', userId: req.user.id, username: req.user.username, target: tag, ip: req.ip, detail: { error: String(e?.message ?? e) } });
+      await this.audit.record({ action: 'deploy', result: 'failure', userId: req.user.id, username: req.user.username, target, ip: req.ip, detail: { error: String(e?.message ?? e) } });
       throw e;
     }
   }
@@ -39,5 +46,9 @@ export class DeployController {
   }
   @Get('deployments') history(@Query('limit') limit = '50') {
     return this.repo.find({ order: { startedAt: 'DESC' }, take: Number(limit) || 50 });
+  }
+  @Delete('deploy/images/:kind/:tag') deleteImage(@Param('kind') kind: unknown, @Param('tag') tag: string, @Req() req: any) {
+    assertKind(kind);
+    return this.deploy.deleteImage(kind, tag, req.user);
   }
 }

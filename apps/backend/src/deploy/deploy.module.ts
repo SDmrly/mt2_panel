@@ -7,6 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ContainersModule } from '../containers/containers.module';
 import { ContainersService } from '../containers/containers.service';
 import { DOCKER, dockerProvider } from '../containers/docker.provider';
+import { AuditService } from '../audit/audit.service';
 import { Deployment } from './deployment.entity';
 import { TagService } from './tag.service';
 import { DeployService } from './deploy.service';
@@ -23,9 +24,9 @@ import { loadConfig } from '../config/config';
     { provide: TagService, inject: [DOCKER], useFactory: (d: Docker) => new TagService(d, loadConfig().deploy, loadConfig().mt2Project) },
     {
       provide: DeployService,
-      inject: [getRepositoryToken(Deployment), ContainersService, RECREATOR, TagService],
-      useFactory: (repo: Repository<Deployment>, c: ContainersService, r: any, t: TagService) =>
-        new DeployService(repo, c, r, t, loadConfig().deploy),
+      inject: [getRepositoryToken(Deployment), ContainersService, RECREATOR, TagService, DOCKER, AuditService],
+      useFactory: (repo: Repository<Deployment>, c: ContainersService, r: any, t: TagService, d: Docker, a: AuditService) =>
+        new DeployService(repo, c, r, t, loadConfig().deploy, d, a),
     },
   ],
 })

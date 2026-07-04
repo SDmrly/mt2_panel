@@ -4,84 +4,189 @@ import { apiClient } from '../lib/api';
 import { useUsers } from '../hooks/useUsers';
 import { useAuthStore } from '../store/auth';
 import { PanelRole, PanelUser } from '../types/user';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/ui/dialog';
+import { toast } from 'sonner';
 
-const STATUS_COLOR: Record<string, string> = { active: 'text-green-600', pending: 'text-yellow-600', disabled: 'text-red-600' };
+const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive'> = {
+  active: 'success',
+  pending: 'warning',
+  disabled: 'destructive',
+};
+const ROLE_VARIANT: Record<PanelRole, 'default' | 'outline' | 'secondary'> = {
+  admin: 'default',
+  operator: 'outline',
+  viewer: 'secondary',
+};
 const ROLES: PanelRole[] = ['viewer', 'operator', 'admin'];
+const selectClass =
+  'bg-[var(--background)] border border-[var(--border)] rounded-[var(--radius)] px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]';
 
 export default function Users() {
   const { data, isLoading, refetch } = useUsers();
   const myId = useAuthStore((s) => s.user?.id);
   const [approveTarget, setApproveTarget] = useState<PanelUser | null>(null);
   const [approveRole, setApproveRole] = useState<PanelRole>('viewer');
+  const [deleteTarget, setDeleteTarget] = useState<PanelUser | null>(null);
   const [busy, setBusy] = useState(false);
-  if (isLoading || !data) return <p className="p-6">Yükleniyor…</p>;
 
-  const patch = async (id: string, body: Record<string, unknown>) => { await apiClient.patch(`/users/${id}`, body); refetch(); };
+  if (isLoading || !data) return <p className="p-6 text-[var(--muted)]">Yükleniyor…</p>;
+
+  const patch = async (u: PanelUser, body: Record<string, unknown>, successMsg: string) => {
+    try {
+      await apiClient.patch(`/users/${u.id}`, body);
+      toast.success(successMsg);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'İşlem başarısız');
+    }
+  };
+
   const openApprove = (u: PanelUser) => { setApproveRole('viewer'); setApproveTarget(u); };
   const confirmApprove = async () => {
     if (!approveTarget) return;
     setBusy(true);
-    try { await patch(approveTarget.id, { status: 'active', role: approveRole }); setApproveTarget(null); }
-    finally { setBusy(false); }
+    try {
+      await apiClient.patch(`/users/${approveTarget.id}`, { status: 'active', role: approveRole });
+      toast.success(`${approveTarget.username} onaylandı`);
+      setApproveTarget(null);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Onay başarısız');
+    } finally {
+      setBusy(false);
+    }
   };
-  const remove = async (u: PanelUser) => { if (confirm(`${u.username} silinsin mi?`)) { await apiClient.delete(`/users/${u.id}`); refetch(); } };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      await apiClient.delete(`/users/${target.id}`);
+      toast.success(`${target.username} silindi`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Silme başarısız');
+    }
+  };
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">Kullanıcılar</h1>
-      <table className="w-full text-sm">
-        <thead><tr className="text-left text-gray-500 border-b">
-          <th className="py-1">Kullanıcı</th><th>E-posta</th><th>Durum</th><th>Rol</th><th>Son giriş</th><th>İşlem</th>
-        </tr></thead>
-        <tbody>
-          {data.map((u) => {
-            const self = u.id === myId;
-            return (
-              <tr key={u.id} className="border-b">
-                <td className="py-1">{u.username}</td>
-                <td>{u.email ?? '—'}</td>
-                <td className={STATUS_COLOR[u.status]}>{u.status}</td>
-                <td>
-                  {u.status === 'active' && !self ? (
-                    <select className="border rounded p-1 text-xs" value={u.role} onChange={(e) => patch(u.id, { role: e.target.value })}>
-                      {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  ) : u.role}
-                </td>
-                <td className="text-gray-500">{u.lastLogin ? new Date(u.lastLogin).toLocaleString() : '—'}</td>
-                <td className="space-x-2">
-                  {u.status === 'pending' && <button className="px-2 py-1 border rounded text-xs" onClick={() => openApprove(u)}>Onayla</button>}
-                  {u.status === 'active' && !self && <button className="px-2 py-1 border rounded text-xs" onClick={() => patch(u.id, { status: 'disabled' })}>Devre dışı</button>}
-                  {u.status === 'disabled' && <button className="px-2 py-1 border rounded text-xs" onClick={() => patch(u.id, { status: 'active' })}>Etkinleştir</button>}
-                  {!self && <button className="px-2 py-1 border rounded text-xs text-red-600" onClick={() => remove(u)}>Sil</button>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <h1 className="text-xl font-bold text-[var(--heading)]">Kullanıcılar</h1>
 
-      {approveTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 space-y-4 w-80 shadow-lg">
-            <h2 className="font-semibold">Kullanıcıyı onayla</h2>
-            <p className="text-sm text-gray-600">
-              <span className="font-mono">{approveTarget.username}</span> için rol seçin:
-            </p>
-            <select
-              className="w-full border rounded p-2 text-sm"
-              value={approveRole}
-              onChange={(e) => setApproveRole(e.target.value as PanelRole)}
-            >
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <div className="flex justify-end gap-2">
-              <button className="px-3 py-1 border rounded text-sm" disabled={busy} onClick={() => setApproveTarget(null)}>İptal</button>
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm disabled:opacity-50" disabled={busy} onClick={confirmApprove}>Onayla</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[var(--muted)] border-b border-[var(--border)] text-xs">
+              <th className="py-1.5 font-medium">Kullanıcı</th>
+              <th className="font-medium">E-posta</th>
+              <th className="font-medium">Durum</th>
+              <th className="font-medium">Rol</th>
+              <th className="font-medium">Son giriş</th>
+              <th className="font-medium text-right">İşlem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((u) => {
+              const self = u.id === myId;
+              return (
+                <tr key={u.id} className="border-b border-[var(--border)] last:border-0">
+                  <td className="py-2 text-[var(--foreground)]">{u.username}</td>
+                  <td className="text-[var(--muted)] text-xs">{u.email ?? '—'}</td>
+                  <td>
+                    <Badge variant={STATUS_VARIANT[u.status] ?? 'outline'}>{u.status}</Badge>
+                  </td>
+                  <td>
+                    {u.status === 'active' && !self ? (
+                      <select
+                        className={selectClass}
+                        value={u.role}
+                        onChange={(e) => patch(u, { role: e.target.value }, `${u.username} rolü güncellendi`)}
+                      >
+                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    ) : (
+                      <Badge variant={ROLE_VARIANT[u.role]}>{u.role}</Badge>
+                    )}
+                  </td>
+                  <td className="text-[var(--muted)] text-xs">
+                    {u.lastLogin ? new Date(u.lastLogin).toLocaleString() : '—'}
+                  </td>
+                  <td className="text-right space-x-2">
+                    {u.status === 'pending' && (
+                      <Button size="sm" variant="outline" onClick={() => openApprove(u)}>Onayla</Button>
+                    )}
+                    {u.status === 'active' && !self && (
+                      <Button size="sm" variant="outline" onClick={() => patch(u, { status: 'disabled' }, `${u.username} devre dışı bırakıldı`)}>
+                        Devre dışı
+                      </Button>
+                    )}
+                    {u.status === 'disabled' && (
+                      <Button size="sm" variant="outline" onClick={() => patch(u, { status: 'active' }, `${u.username} etkinleştirildi`)}>
+                        Etkinleştir
+                      </Button>
+                    )}
+                    {!self && (
+                      <Button size="sm" variant="destructive" onClick={() => setDeleteTarget(u)}>Sil</Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {data.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-4 text-center text-[var(--faint)] text-xs">Kullanıcı yok</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Dialog open={!!approveTarget} onOpenChange={(open) => !open && setApproveTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kullanıcıyı onayla</DialogTitle>
+            <DialogDescription>
+              <span className="font-mono">{approveTarget?.username}</span> için rol seçin:
+            </DialogDescription>
+          </DialogHeader>
+          <select
+            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-[var(--radius)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            value={approveRole}
+            onChange={(e) => setApproveRole(e.target.value as PanelRole)}
+          >
+            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setApproveTarget(null)}>İptal</Button>
+            <Button variant="default" disabled={busy} onClick={confirmApprove}>Onayla</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kullanıcıyı sil</DialogTitle>
+            <DialogDescription>
+              <span className="font-mono">{deleteTarget?.username}</span> silinsin mi?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>İptal</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Sil</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

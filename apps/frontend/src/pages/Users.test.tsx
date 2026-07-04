@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Users from './Users';
+import { apiClient } from '../lib/api';
 
 vi.mock('../hooks/useUsers', () => ({
   useUsers: () => ({ data: [
@@ -10,11 +11,28 @@ vi.mock('../hooks/useUsers', () => ({
   ], isLoading: false, refetch: () => {} }),
 }));
 vi.mock('../store/auth', () => ({ useAuthStore: (sel: any) => sel({ user: { id: 'adm', role: 'admin' } }) }));
+vi.mock('../lib/api', () => ({
+  apiClient: { patch: vi.fn().mockResolvedValue({}), delete: vi.fn().mockResolvedValue({}) },
+}));
 
-it('kullanıcıları listeler; pending satırda Onayla görünür', () => {
+function renderPage() {
   const qc = new QueryClient();
   render(<QueryClientProvider client={qc}><MemoryRouter><Users /></MemoryRouter></QueryClientProvider>);
+}
+
+it('kullanıcıları listeler; pending satırda Onayla görünür', () => {
+  renderPage();
   expect(screen.getByText('bekleyen')).toBeInTheDocument();
   expect(screen.getByText('b@x.com')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /onayla/i })).toBeInTheDocument();
+});
+
+it('sil bir onay dialogu açar, onaylayınca DELETE çağırır', async () => {
+  renderPage();
+  fireEvent.click(screen.getAllByRole('button', { name: /sil/i })[0]);
+  expect(await screen.findByText(/silinsin mi/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /^sil$|onayla/i }));
+  await waitFor(() => {
+    expect(apiClient.delete).toHaveBeenCalledWith('/users/u1');
+  });
 });

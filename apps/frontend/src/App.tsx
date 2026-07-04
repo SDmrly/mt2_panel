@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { NavBar } from './components/NavBar';
+import { Sidebar } from './components/layout/Sidebar';
+import { Topbar } from './components/layout/Topbar';
 import { useAuthStore } from './store/auth';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,7 +20,15 @@ function AuthLayout({ children }: { children: ReactElement }) {
   const status = useAuthStore((s) => s.user?.status);
   if (!token) return <Navigate to="/login" replace />;
   if (status !== 'active') return <Navigate to="/pending" replace />;
-  return (<div className="min-h-screen flex flex-col"><NavBar /><main className="flex-1">{children}</main></div>);
+  return (
+    <div className="min-h-screen flex bg-[var(--background)]">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {

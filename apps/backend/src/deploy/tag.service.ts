@@ -18,24 +18,55 @@ export class TagService {
     return set;
   }
 
-  async listTags(): Promise<{ tags: TagInfo[]; current: string | null }> {
-    const images = await this.docker.listImages();
-    const gameTags = this.tagsFor(images, this.cfg.gameRepo);
-    const dbTags = this.tagsFor(images, this.cfg.dbRepo);
-    const tags: TagInfo[] = [...gameTags].sort().map((name) => ({ name, deployable: dbTags.has(name) }));
-    return { tags, current: await this.currentTag() };
+  private metaFor(images: any[], repo: string): Map<string, { created: number; size: number }> {
+    const map = new Map<string, { created: number; size: number }>();
+    for (const img of images) for (const rt of img.RepoTags ?? []) {
+      const i = rt.lastIndexOf(':');
+      if (i > 0 && rt.slice(0, i) === repo) {
+        map.set(rt.slice(i + 1), { created: img.Created ?? 0, size: img.Size ?? 0 });
+      }
+    }
+    return map;
   }
 
-  private async currentTag(): Promise<string | null> {
+  private buildList(images: any[], repo: string, current: string | null): TagInfo[] {
+    const tags = this.tagsFor(images, repo);
+    const meta = this.metaFor(images, repo);
+    return [...tags].sort().map((name) => {
+      const m = meta.get(name);
+      const isRunning = name === current;
+      return {
+        name,
+        createdAt: new Date((m?.created ?? 0) * 1000).toISOString(),
+        sizeMb: Math.round((m?.size ?? 0) / 1048576),
+        isRunning,
+        deployable: !isRunning,
+      };
+    });
+  }
+
+  async listTags(): Promise<{ game: TagInfo[]; db: TagInfo[]; currentGame: string | null; currentDb: string | null }> {
+    const images = await this.docker.listImages();
+    const currentGame = await this.currentTagFor(this.cfg.gameRepo);
+    const currentDb = await this.currentTagFor(this.cfg.dbRepo);
+    const game = this.buildList(images, this.cfg.gameRepo, currentGame);
+    const db = this.buildList(images, this.cfg.dbRepo, currentDb);
+    return { game, db, currentGame, currentDb };
+  }
+
+  private async currentTagFor(repo: string): Promise<string | null> {
     const list = await this.docker.listContainers({ all: true,
       filters: { label: [`com.docker.compose.project=${this.project}`] } });
+    let fallback: string | null = null;
     for (const c of list) {
       const info = await this.docker.getContainer(c.Id).inspect();
       const img: string = info.Config?.Image ?? '';
-      if (img.startsWith(this.cfg.gameRepo + ':') || img.startsWith(this.cfg.dbRepo + ':')) {
-        return img.slice(img.lastIndexOf(':') + 1);
-      }
+      if (!img.startsWith(repo + ':')) continue;
+      const tag = img.slice(img.lastIndexOf(':') + 1);
+      const isRunning = c.State === 'running' || (typeof c.Status === 'string' && c.Status.startsWith('Up'));
+      if (isRunning) return tag;
+      if (fallback === null) fallback = tag;
     }
-    return null;
+    return fallback;
   }
 }

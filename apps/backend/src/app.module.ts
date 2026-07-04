@@ -13,6 +13,7 @@ import { LogsModule } from './logs/logs.module';
 import { DeployModule } from './deploy/deploy.module';
 import { AuditModule } from './audit/audit.module';
 import { UsersModule } from './users/users.module';
+import { SystemModule } from './system/system.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
     ContainersModule,
     LogsModule,
     DeployModule,
+    SystemModule,
   ],
   controllers: [HealthController],
 })

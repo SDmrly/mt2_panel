@@ -1,10 +1,11 @@
 // apps/backend/src/deploy/deployment.entity.ts
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { DeployStatus } from './types';
+import { DeployKind, DeployStatus } from './types';
 
 @Entity('deployments')
 export class Deployment {
   @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ type: 'varchar', default: 'game' }) kind!: DeployKind;
   @Column({ name: 'service_scope', default: 'all-game' }) serviceScope!: string;
   @Column({ name: 'from_tag', type: 'varchar', nullable: true }) fromTag!: string | null;
   @Column({ name: 'to_tag' }) toTag!: string;

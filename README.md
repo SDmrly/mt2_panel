@@ -313,3 +313,19 @@ mt2-panel/
 - ✅ **Faz 5** — Üyelik + onay kapısı + admin kullanıcı yönetimi (pending/active/disabled, lockout-önleme, audit) (bu sürüm)
 - ⏳ **Son faz (görsel)** — Kurumsal UI/UX cila (dashboard, modal'lar, tema) + topoloji haritası; opsiyonel: FATAL log alarmı, haftalık rapor
 - ⏳ 2FA (TOTP) — şema hazır, opsiyonel aktivasyon
+
+---
+
+## Ekran Görüntüleri
+
+![Ekran görüntüsü 1](img/1.png)
+
+![Ekran görüntüsü 2](img/2.png)
+
+![Ekran görüntüsü 3](img/3.png)
+
+![Ekran görüntüsü 4](img/4.png)
+
+![Ekran görüntüsü 5](img/5.png)
+
+![Ekran görüntüsü 6](img/6.png)

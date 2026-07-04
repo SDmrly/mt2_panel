@@ -1,102 +1,158 @@
 // apps/frontend/src/pages/ServiceDetail.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { Terminal } from 'lucide-react';
 import { apiClient } from '../lib/api';
 import { useServices } from '../hooks/useServices';
 import { useServiceStats } from '../hooks/useServiceStats';
 import { useAuthStore } from '../store/auth';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/ui/dialog';
+import { Gauge } from '../components/dashboard/Gauge';
+import { NetworkCard } from '../components/dashboard/NetworkCard';
+import { LogModal } from '../components/logs/LogModal';
+import { healthDisplay } from '../lib/serviceHealth';
+import { toast } from 'sonner';
+
+const STATUS_DOT: Record<string, string> = {
+  running: 'var(--accent)', restarting: 'var(--warning)', exited: 'var(--faint)', stopped: 'var(--faint)',
+};
+const ACTION_LABEL: Record<'restart' | 'stop', string> = {
+  restart: 'yeniden başlatıldı',
+  stop: 'durduruldu',
+};
 
 export default function ServiceDetail() {
   const { name = '' } = useParams();
   const { data: services } = useServices();
   const { data: stats } = useServiceStats(name);
-  const [history, setHistory] = useState<
-    { t: string; cpu: number; mem: number }[]
-  >([]);
+  const [netRate, setNetRate] = useState<{ rx: number; tx: number }>({ rx: 0, tx: 0 });
+  const [netHistory, setNetHistory] = useState<{ t: number; rx: number; tx: number }[]>([]);
+  const prevNet = useRef<{ rx: number; tx: number; at: number } | null>(null);
   const [modal, setModal] = useState<null | 'restart' | 'stop'>(null);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const role = useAuthStore((s) => s.user?.role);
   const canWrite = role === 'admin' || role === 'operator';
   const card = services?.find((s) => s.name === name);
+  const memPct = stats && stats.memLimitMb ? (stats.memUsedMb / stats.memLimitMb) * 100 : 0;
 
-  // Accumulate stats history in a useEffect to avoid triggering infinite render loops
+  // Kümülatif net toplamından anlık MB/s oranını hesapla (Dashboard ile aynı semantik).
   useEffect(() => {
     if (!stats) return;
-    setHistory((prev) => {
-      const last = prev[prev.length - 1];
-      // Skip if the CPU value hasn't changed (avoid duplicate points)
-      if (last && last.cpu === stats.cpuPercent) return prev;
-      return [
-        ...prev,
-        {
-          t: new Date().toLocaleTimeString(),
-          cpu: stats.cpuPercent,
-          mem: stats.memUsedMb,
-        },
-      ].slice(-30);
-    });
+    const now = Date.now();
+    const cumRx = stats.networkRxMb;
+    const cumTx = stats.networkTxMb;
+    const prev = prevNet.current;
+    if (prev && now > prev.at) {
+      const dt = (now - prev.at) / 1000;
+      const rx = Math.max(0, Number(((cumRx - prev.rx) / dt).toFixed(2)));
+      const tx = Math.max(0, Number(((cumTx - prev.tx) / dt).toFixed(2)));
+      setNetRate({ rx, tx });
+      setNetHistory((h) => [...h, { t: now, rx, tx }].slice(-30));
+    }
+    prevNet.current = { rx: cumRx, tx: cumTx, at: now };
   }, [stats]);
 
+  // Servis değişince net geçmişini sıfırla.
+  useEffect(() => {
+    prevNet.current = null;
+    setNetHistory([]);
+    setNetRate({ rx: 0, tx: 0 });
+  }, [name]);
+
   const act = async (a: 'restart' | 'stop') => {
-    await apiClient.post(`/services/${name}/${a}`);
     setModal(null);
+    setBusy(true);
+    try {
+      await apiClient.post(`/services/${name}/${a}`);
+      toast.success(`${name} ${ACTION_LABEL[a]}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'İşlem başarısız');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">{name}</h1>
-      {card && (
-        <div className="text-sm text-gray-500">
-          {card.role} · {card.image.name}:{card.image.tag} · {card.health}
+      {/* Başlık + aksiyonlar (restart/stop artık burada, panelin altında değil) */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{ background: card ? STATUS_DOT[card.status] ?? 'var(--faint)' : 'var(--faint)' }}
+          />
+          <h1 className="text-xl font-bold font-mono text-[var(--heading)]">{name}</h1>
         </div>
-      )}
-      <div className="h-64 border rounded p-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={history}>
-            <XAxis dataKey="t" hide />
-            <YAxis />
-            <Tooltip />
-            <Line dataKey="cpu" name="CPU %" stroke="#2563eb" dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="flex items-center gap-2">
+          {canWrite && (
+            <>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => setModal('restart')}>Restart</Button>
+              <Button size="sm" variant="destructive" disabled={busy} onClick={() => setModal('stop')}>Stop</Button>
+            </>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setLogsOpen(true)}>
+            <Terminal size={14} /> Canlı Log
+          </Button>
+        </div>
       </div>
-      {stats && (
-        <div className="text-sm">
-          CPU {stats.cpuPercent}% · RAM {stats.memUsedMb}/{stats.memLimitMb} MB
-          · net ↓{stats.networkRxMb} ↑{stats.networkTxMb} MB
+
+      {card && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline">
+            {card.role}{card.role === 'channel' && card.channel !== undefined ? ` · ch${card.channel}` : ''}
+          </Badge>
+          {(() => { const h = healthDisplay(card.health, card.status); return <Badge variant={h.variant}>{h.label}</Badge>; })()}
+          <span className="text-xs text-[var(--faint)]">{card.image.name}:{card.image.tag} · {card.uptime}</span>
         </div>
       )}
-      <div className="text-sm">Portlar: {card?.ports.join(', ') || '—'}</div>
-      {canWrite && (
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-1 border rounded"
-            onClick={() => setModal('restart')}
-          >
-            Restart
-          </button>
-          <button
-            className="px-3 py-1 border rounded"
-            onClick={() => setModal('stop')}
-          >
-            Stop
-          </button>
+
+      {/* Performans (CPU/RAM gauge — Dashboard ile aynı) + Ağ trafiği grafiği */}
+      <div className="grid md:grid-cols-[1.4fr_1fr] gap-4">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+          <div className="text-[var(--heading)] font-bold text-sm mb-2">Performans</div>
+          <div className="flex gap-3 justify-around">
+            <Gauge value={stats?.cpuPercent ?? 0} label="CPU" color="var(--accent)" />
+            <Gauge
+              value={memPct}
+              label="RAM"
+              color="var(--primary)"
+              sub={stats ? `${stats.memUsedMb} / ${stats.memLimitMb} MB` : undefined}
+            />
+          </div>
         </div>
-      )}
-      <ConfirmModal
-        open={modal !== null}
-        title={modal ? `${name} ${modal} edilsin mi?` : ''}
-        onConfirm={() => act(modal!)}
-        onCancel={() => setModal(null)}
-      />
+        <NetworkCard rx={netRate.rx} tx={netRate.tx} history={netHistory} />
+      </div>
+
+      <div className="text-sm text-[var(--muted)]">
+        Portlar: <span className="font-mono text-[var(--foreground)]">{card?.ports.join(', ') || '—'}</span>
+      </div>
+
+      <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{modal === 'restart' ? 'Servisi yeniden başlat' : 'Servisi durdur'}</DialogTitle>
+            <DialogDescription>
+              <span className="font-mono">{name}</span> {modal} edilsin mi?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setModal(null)}>İptal</Button>
+            <Button variant="destructive" disabled={busy} onClick={() => modal && act(modal)}>Onayla</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <LogModal service={logsOpen ? name : null} onClose={() => setLogsOpen(false)} />
     </div>
   );
 }

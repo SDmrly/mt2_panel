@@ -1,18 +1,37 @@
 // apps/frontend/src/pages/Dashboard.tsx
-import { Link } from 'react-router-dom';
-import { useServices } from '../hooks/useServices';
-import { HealthChain } from '../components/HealthChain';
+import { useEffect, useRef, useState } from 'react';
+import { useSystemOverview } from '../hooks/useSystemOverview';
+import { PerformanceCard } from '../components/dashboard/PerformanceCard';
+import { DiskCard } from '../components/dashboard/DiskCard';
+import { NetworkCard } from '../components/dashboard/NetworkCard';
+import { ContainerTiles } from '../components/dashboard/ContainerTiles';
+import { LogModal } from '../components/logs/LogModal';
+
 export default function Dashboard() {
-  const { data, isLoading } = useServices();
-  if (isLoading || !data) return <p className="p-6">Yükleniyor…</p>;
-  const qc = data.find((s) => s.role === 'quest-compiler');
+  const { data: o, isLoading } = useSystemOverview();
+  const [logService, setLogService] = useState<string | null>(null);
+  const histRef = useRef<{ t: number; rx: number; tx: number }[]>([]);
+  useEffect(() => {
+    if (o) { histRef.current = [...histRef.current, { t: Date.now(), rx: o.netRxMbps, tx: o.netTxMbps }].slice(-30); }
+  }, [o]);
+
+  if (isLoading || !o) return <p className="p-6 text-[var(--muted)]">Yükleniyor…</p>;
+
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-xl font-bold">Genel Durum</h1>
-      {qc && qc.exitCode !== undefined && qc.exitCode !== 0 && (
-        <div className="bg-red-600 text-white p-3 rounded">⚠ quest-compiler hata ile bitti (exit {qc.exitCode}). Kanallar başlamamış olabilir.</div>)}
-      <section><h2 className="font-semibold mb-2">Healthcheck Zinciri</h2><HealthChain services={data} /></section>
-      <Link to="/services" className="text-blue-600 underline">Tüm servisler →</Link>
+    <div className="p-6 space-y-4">
+      <div className="grid md:grid-cols-[1.4fr_1fr] gap-4">
+        <PerformanceCard o={o} />
+        <DiskCard o={o} />
+      </div>
+      <NetworkCard rx={o.netRxMbps} tx={o.netTxMbps} history={histRef.current} />
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[var(--heading)] font-bold text-sm">Containers</span>
+          <span className="text-[var(--faint)] text-[10px]">kutuya tıkla → canlı log · servis detayı için soldaki menü</span>
+        </div>
+        <ContainerTiles items={o.containers} onLogs={setLogService} />
+      </div>
+      <LogModal service={logService} onClose={() => setLogService(null)} />
     </div>
   );
 }

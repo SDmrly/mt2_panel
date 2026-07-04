@@ -1,6 +1,13 @@
 // apps/backend/src/deploy/types.ts
 export type DeployStatus = 'running' | 'success' | 'failed' | 'rolled_back';
-export interface TagInfo { name: string; deployable: boolean; } // deployable: hem game hem db image'ı var
+export type DeployKind = 'game' | 'db';
+export interface TagInfo {
+  name: string;
+  createdAt: string;   // ISO string, image.Created (unix sn) üzerinden
+  sizeMb: number;      // image.Size byte -> MB
+  isRunning: boolean;  // bu repo için şu an çalışan container'ın image tag'i mi
+  deployable: boolean; // !isRunning — çalışmayan tag'ler deploy edilebilir
+}
 export interface DeployEvent {
   type: 'log' | 'step' | 'done' | 'failed' | 'rollback';
   step?: string;          // 'write-env' | 'compose-up' | 'healthcheck' | ...
